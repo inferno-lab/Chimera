@@ -11,7 +11,8 @@ Tests cover:
 
 import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
+from flask import g
 from app.utils.auth_helpers import (
     TokenError,
     generate_token,
@@ -286,14 +287,10 @@ class TestTokenExtraction:
 class TestRequireAuthDecorator:
     """Test require_auth decorator."""
 
-    @patch('app.utils.auth_helpers.request')
-    @patch('app.utils.auth_helpers.g')
-    def test_require_auth_valid_token(self, mock_g, mock_request, app):
+    def test_require_auth_valid_token(self, app):
         """Test decorator allows valid token."""
-        with app.app_context():
-            token = generate_token('user_123')
-            mock_request.headers.get.return_value = f'Bearer {token}'
-
+        token = generate_token('user_123')
+        with app.test_request_context(headers={'Authorization': f'Bearer {token}'}):
             @require_auth()
             def protected_view():
                 return {'success': True}
@@ -301,15 +298,12 @@ class TestRequireAuthDecorator:
             result = protected_view()
 
             assert result == {'success': True}
-            assert mock_g.user_id == 'user_123'
-            assert mock_g.auth_method == 'token'
+            assert g.user_id == 'user_123'
+            assert g.auth_method == 'token'
 
-    @patch('app.utils.auth_helpers.request')
-    def test_require_auth_missing_token(self, mock_request, app):
+    def test_require_auth_missing_token(self, app):
         """Test decorator rejects missing token."""
-        with app.app_context():
-            mock_request.headers.get.return_value = None
-
+        with app.test_request_context():
             @require_auth()
             def protected_view():
                 return {'success': True}
@@ -318,12 +312,9 @@ class TestRequireAuthDecorator:
 
             assert status_code == 401
 
-    @patch('app.utils.auth_helpers.request')
-    def test_require_auth_invalid_token(self, mock_request, app):
+    def test_require_auth_invalid_token(self, app):
         """Test decorator rejects invalid token."""
-        with app.app_context():
-            mock_request.headers.get.return_value = 'Bearer invalid'
-
+        with app.test_request_context(headers={'Authorization': 'Bearer invalid'}):
             @require_auth()
             def protected_view():
                 return {'success': True}
@@ -332,13 +323,9 @@ class TestRequireAuthDecorator:
 
             assert status_code == 401
 
-    @patch('app.utils.auth_helpers.request')
-    @patch('app.utils.auth_helpers.g')
-    def test_require_auth_api_key(self, mock_g, mock_request, app):
+    def test_require_auth_api_key(self, app):
         """Test decorator allows valid API key."""
-        with app.app_context():
-            mock_request.headers.get.side_effect = [None, 'tx_valid_key']
-
+        with app.test_request_context(headers={'X-API-Key': 'tx_valid_key'}):
             @require_auth(allow_api_key=True)
             def protected_view():
                 return {'success': True}
@@ -346,17 +333,16 @@ class TestRequireAuthDecorator:
             result = protected_view()
 
             assert result == {'success': True}
-            assert mock_g.auth_method == 'api_key'
+            assert g.auth_method == 'api_key'
 
 
 class TestRequireRoleDecorator:
     """Test require_role decorator."""
 
-    @patch('app.utils.auth_helpers.g')
-    def test_require_role_authorized(self, mock_g, app):
+    def test_require_role_authorized(self, app):
         """Test decorator allows authorized role."""
-        with app.app_context():
-            mock_g.token_payload = {'user_id': 'user_123', 'role': 'admin'}
+        with app.test_request_context():
+            g.token_payload = {'user_id': 'user_123', 'role': 'admin'}
 
             @require_role(['admin', 'superuser'])
             def admin_view():
@@ -366,11 +352,10 @@ class TestRequireRoleDecorator:
 
             assert result == {'success': True}
 
-    @patch('app.utils.auth_helpers.g')
-    def test_require_role_unauthorized(self, mock_g, app):
+    def test_require_role_unauthorized(self, app):
         """Test decorator rejects unauthorized role."""
-        with app.app_context():
-            mock_g.token_payload = {'user_id': 'user_123', 'role': 'user'}
+        with app.test_request_context():
+            g.token_payload = {'user_id': 'user_123', 'role': 'user'}
 
             @require_role(['admin'])
             def admin_view():
@@ -382,7 +367,7 @@ class TestRequireRoleDecorator:
 
     def test_require_role_no_token(self, app):
         """Test decorator rejects when no token payload."""
-        with app.app_context():
+        with app.test_request_context():
             @require_role(['admin'])
             def admin_view():
                 return {'success': True}
@@ -454,7 +439,7 @@ class TestMFAFunctions:
 
     def test_verify_totp_code_valid(self):
         """Test TOTP code verification with valid code."""
-        import pyotp
+        pyotp = pytest.importorskip('pyotp')
 
         secret = generate_mfa_secret()
         totp = pyotp.TOTP(secret)
