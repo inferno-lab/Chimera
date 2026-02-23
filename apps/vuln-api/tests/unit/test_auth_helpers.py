@@ -113,14 +113,14 @@ class TestTokenVerification:
 
     def test_verify_token_expired(self):
         """Test verification fails for expired token."""
-        # Generate token with very short expiry
         token = generate_token('user_123', expiry_seconds=1)
 
-        # Wait for token to expire
-        time.sleep(1.1)
-
-        with pytest.raises(TokenError, match='expired'):
-            verify_token(token)
+        # Mock time to be well past expiry instead of sleeping
+        future_time = time.time() + 5
+        with patch('app.utils.auth_helpers.time') as mock_time:
+            mock_time.time.return_value = future_time
+            with pytest.raises(TokenError, match='expired'):
+                verify_token(token)
 
     def test_verify_token_skip_expiry(self):
         """Test verification with expiry check skipped."""
@@ -264,33 +264,23 @@ class TestTokenExtraction:
         assert extract_bearer_token('') is None
         assert extract_bearer_token(None) is None
 
-    @patch('app.utils.auth_helpers.request')
-    def test_extract_api_key_from_header(self, mock_request):
+    def test_extract_api_key_from_header(self, app):
         """Test extracting API key from header."""
-        mock_request.headers.get.return_value = 'tx_api_key_123'
+        with app.test_request_context(headers={'X-API-Key': 'tx_api_key_123'}):
+            key = extract_api_key()
+            assert key == 'tx_api_key_123'
 
-        key = extract_api_key()
-
-        assert key == 'tx_api_key_123'
-
-    @patch('app.utils.auth_helpers.request')
-    def test_extract_api_key_from_query(self, mock_request):
+    def test_extract_api_key_from_query(self, app):
         """Test extracting API key from query parameter."""
-        mock_request.headers.get.return_value = None
-        mock_request.args.get.return_value = 'tx_query_key_456'
+        with app.test_request_context('/?api_key=tx_query_key_456'):
+            key = extract_api_key(allow_query=True)
+            assert key == 'tx_query_key_456'
 
-        key = extract_api_key(allow_query=True)
-
-        assert key == 'tx_query_key_456'
-
-    @patch('app.utils.auth_helpers.request')
-    def test_extract_api_key_query_not_allowed(self, mock_request):
+    def test_extract_api_key_query_not_allowed(self, app):
         """Test query parameter ignored when not allowed."""
-        mock_request.headers.get.return_value = None
-
-        key = extract_api_key(allow_query=False)
-
-        assert key is None
+        with app.test_request_context('/?api_key=tx_key'):
+            key = extract_api_key(allow_query=False)
+            assert key is None
 
 
 class TestRequireAuthDecorator:

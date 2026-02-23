@@ -441,7 +441,7 @@ class TestAttackSimulation:
         data = response.get_json()
         assert data['test'] == 'SQL_INJECTION'
         assert data['status'] == 'vulnerable'
-        assert 'exposed_data' in data
+        assert 'exposed_data' in data['result']
 
     def test_sql_injection_or_bypass(self, client):
         """Test OR-based SQL injection."""
