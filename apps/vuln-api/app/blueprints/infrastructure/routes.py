@@ -12,6 +12,67 @@ import time
 from . import infrastructure_bp
 from app.models import *
 
+@infrastructure_bp.route('/api/v1/infrastructure/compute/process-image', methods=['POST'])
+def process_image():
+    """
+    Simulated serverless image processing endpoint.
+    VULNERABILITY: OS Command Injection, SSRF
+    """
+    data = request.get_json() or {}
+    image_url = data.get('image_url', '')
+    
+    if not image_url:
+        return jsonify({'error': 'image_url required'}), 400
+        
+    # VULNERABILITY: OS Command Injection
+    # Example: "https://example.com/img.jpg; id"
+    if ';' in image_url or '|' in image_url or '`' in image_url:
+        # Simulate command execution output
+        return jsonify({
+            'status': 'processed',
+            'image_url': image_url,
+            'metadata': {
+                'width': 1024,
+                'height': 768,
+                'format': 'JPEG'
+            },
+            'debug_info': '[VULNERABILITY] Command injection output: root:x:0:0:root:/root:/bin/bash'
+        })
+
+    return jsonify({
+        'status': 'processed',
+        'image_url': image_url,
+        'metadata': {
+            'width': 800,
+            'height': 600,
+            'format': 'PNG'
+        }
+    })
+
+
+@infrastructure_bp.route('/api/v1/infrastructure/storage/presign', methods=['POST'])
+def storage_presign():
+    """
+    Generate pre-signed URLs for storage access.
+    VULNERABILITY: Logic Flaw, Path Traversal
+    """
+    data = request.get_json() or {}
+    file_id = data.get('file_id', '')
+    action = data.get('action', 'GET')
+    
+    # VULNERABILITY: Minimal validation allows path traversal to other buckets
+    if '..' in file_id:
+        return jsonify({
+            'url': f"https://s3.amazonaws.com/sensitive-internal-bucket/{file_id}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA...",
+            'warning': 'Path traversal allowed in pre-signed URL generation'
+        })
+        
+    return jsonify({
+        'url': f"https://s3.amazonaws.com/public-assets-bucket/{file_id}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA...",
+        'expires': 3600
+    })
+
+
 @infrastructure_bp.route('/api/gateway/routes')
 def gateway_routes():
     """Route enumeration - potential reconnaissance target"""

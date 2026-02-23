@@ -36,14 +36,17 @@ def ping_host():
             'status': 'error'
         })
 
-@diagnostics_bp.route('/api/v1/diagnostics/webhook', methods=['POST'])
+@diagnostics_bp.route('/api/v1/diagnostics/webhook', methods=['GET', 'POST'])
 def test_webhook():
     """
     Webhook Integration Tester
     VULNERABILITY: Server-Side Request Forgery (SSRF)
     """
-    data = request.get_json() or {}
-    url = data.get('url', '')
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        url = data.get('url', '')
+    else:
+        url = request.args.get('url', '')
 
     if not url:
         return jsonify({'error': 'URL required'}), 400

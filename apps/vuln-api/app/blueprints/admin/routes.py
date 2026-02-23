@@ -22,6 +22,25 @@ from app.models import *
 # USER MANAGEMENT - Privilege Escalation Vulnerabilities
 # ============================================================================
 
+@admin_bp.route('/api/v1/admin/audit/suspend', methods=['POST'])
+def suspend_audit():
+    """
+    Suspend global auditing.
+    VULNERABILITY: Compliance Violation, Audit Log Suppression
+    """
+    data = request.get_json() or {}
+    duration = data.get('duration_minutes', 5)
+    reason = data.get('reason', 'Maintenance')
+    
+    return jsonify({
+        'status': 'auditing_suspended',
+        'duration': duration,
+        'reason': reason,
+        'timestamp': datetime.now().isoformat(),
+        'warning': 'Global audit logging has been suspended'
+    })
+
+
 @admin_bp.route('/api/v1/admin/users')
 def list_users():
     """List all users - Missing authorization"""

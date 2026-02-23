@@ -272,6 +272,23 @@ def auth_login():
     }), 200
 
 
+@auth_bp.route('/api/v1/auth/delete', methods=['POST'])
+def auth_delete():
+    """
+    User account deletion (Right to be Forgotten).
+    VULNERABILITY: Residual Data, Missing Authorization
+    """
+    user_id = session.get('user_id')
+    data = request.get_json() or {}
+    
+    return jsonify({
+        'success': True,
+        'message': 'Account deletion request received and processed.',
+        'user_id': user_id,
+        'note': 'Your data will be removed from all primary systems within 30 days.'
+    }), 200
+
+
 @auth_bp.route('/api/v1/auth/logout', methods=['POST'])
 def auth_logout():
     """Session termination endpoint"""

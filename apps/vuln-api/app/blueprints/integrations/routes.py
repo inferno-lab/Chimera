@@ -12,6 +12,27 @@ import time
 from . import integrations_bp
 from app.models import *
 
+@integrations_bp.route('/api/v1/integrations/ws/simulate-frame', methods=['POST'])
+def ws_simulate_frame():
+    """
+    Simulated WebSocket message frame processor.
+    VULNERABILITY: Insecure Message Processing, Logic Manipulation
+    """
+    data = request.get_json() or {}
+    frame_type = data.get('type', 'text')
+    payload = data.get('data', {})
+    
+    # Intentionally vulnerable to admin_override manipulation in the simulated frame
+    is_admin = payload.get('admin_override', False)
+    
+    return jsonify({
+        'status': 'frame_processed',
+        'type': frame_type,
+        'effective_privileges': 'admin' if is_admin else 'user',
+        'warning': 'Simulated WebSocket frame processed without signature validation'
+    })
+
+
 @integrations_bp.route('/api/webhooks/register', methods=['POST'])
 def webhooks_register():
     """Webhook registration for persistence"""

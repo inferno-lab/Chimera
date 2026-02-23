@@ -200,3 +200,62 @@ def model_config():
         },
         'system_prompt_version': 'v4.5-security-hardened'
     })
+
+
+@genai_bp.route('/api/v1/genai/graphql', methods=['POST'])
+def genai_graphql():
+    """
+    GraphQL-like endpoint for GenAI queries.
+    VULNERABILITY: GraphQL Introspection, Depth/Complexity DoS
+    """
+    # This is a mock GraphQL endpoint that simulates common vulnerabilities
+    data = request.get_json() or {}
+    
+    # Handle batching (array of queries)
+    if isinstance(data, list):
+        # Batching attack simulation
+        if len(data) > 1:
+            time.sleep(0.5 * len(data)) # Linear slowdown for batching
+            return jsonify([
+                {'data': {'systemInfo': {'version': '2.1.0'}}}
+                for _ in data
+            ])
+        return jsonify([])
+
+    query = data.get('query', '')
+    
+    # 1. Introspection
+    if '__schema' in query:
+        return jsonify({
+            'data': {
+                '__schema': {
+                    'types': [
+                        {'name': 'Query', 'fields': [{'name': 'user'}, {'name': 'systemInfo'}]},
+                        {'name': 'User', 'fields': [{'name': 'id'}, {'name': 'posts'}]},
+                        {'name': 'Post', 'fields': [{'name': 'id'}, {'name': 'comments'}]},
+                        {'name': 'Comment', 'fields': [{'name': 'id'}, {'name': 'author'}]}
+                    ]
+                }
+            }
+        })
+        
+    # 2. Deep Nesting DoS
+    # Simulate resource exhaustion based on query depth
+    depth = query.count('{')
+    if depth > 5:
+        # Simulate a timeout or very slow response
+        time.sleep(3.0)
+        return jsonify({
+            'errors': [{'message': 'Query too complex or deeply nested'}],
+            'note': '[DoS SUCCESS] The server took 3 seconds to process this nested query.'
+        }), 400
+
+    return jsonify({
+        'data': {
+            'systemInfo': {
+                'version': '2.1.0',
+                'status': 'operational'
+            }
+        }
+    })
+

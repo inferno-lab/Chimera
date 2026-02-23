@@ -22,6 +22,53 @@ from app.models import *
 # PATIENT RECORDS - PHI Exposure Vulnerabilities
 # ============================================================================
 
+@healthcare_bp.route('/api/v1/healthcare/records/emergency-access', methods=['POST'])
+def emergency_access():
+    """
+    Emergency "Break-Glass" access to PHI.
+    VULNERABILITY: Missing Justification, Missing Audit Alert
+    """
+    data = request.get_json() or {}
+    patient_id = data.get('patient_id')
+    justification = data.get('justification')
+    
+    if not justification:
+        return jsonify({
+            'error': 'Emergency access requires a justification string.',
+            'vulnerability': 'JUSTIFICATION_ENFORCEMENT_MISSING'
+        }), 400
+        
+    return jsonify({
+        'status': 'access_granted',
+        'patient_id': patient_id,
+        'access_token': f"EMERGENCY-{uuid.uuid4().hex[:12]}",
+        'warning': 'Emergency access granted. This action will be audited (eventually).'
+    })
+
+
+@healthcare_bp.route('/api/v1/healthcare/records/export', methods=['POST'])
+def export_records():
+    """
+    Bulk PHI data export.
+    VULNERABILITY: Mass Data Exfiltration, Unauthorized PHI Access
+    """
+    data = request.get_json() or {}
+    patient_ids = data.get('patient_ids', [])
+    export_format = data.get('format', 'pdf')
+    
+    # Intentionally vulnerable to audit suppression if X-Skip-Audit header is present
+    skip_audit = request.headers.get('X-Skip-Audit', 'false').lower() == 'true'
+    
+    return jsonify({
+        'export_id': f"PHI-EXP-{uuid.uuid4().hex[:8]}",
+        'status': 'processing',
+        'patient_count': len(patient_ids),
+        'format': export_format,
+        'audit_logged': not skip_audit,
+        'warning': 'PHI data export initiated without authorization'
+    })
+
+
 @healthcare_bp.route('/api/v1/healthcare/records')
 def list_records():
     """List medical records - Missing pagination and access controls"""
