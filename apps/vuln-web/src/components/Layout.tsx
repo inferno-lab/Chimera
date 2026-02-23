@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, Menu, User, Sun, Moon, PlayCircle, ArrowLeft, HelpCircle, Scan } from 'lucide-react';
+import { Shield, Menu, User, Sun, Moon, PlayCircle, ArrowLeft, HelpCircle } from 'lucide-react';
 import { AiAssistant } from './AiAssistant';
 import { RedTeamConsole } from './RedTeamConsole';
 import { XRayInspector } from './XRayInspector';
@@ -70,6 +70,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             )}
           </nav>
 
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 // Dispatch event or use context? For now I'll just rely on the B key shortcut being known or add a local state if I wanted to control it from here.

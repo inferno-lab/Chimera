@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, ShieldCheck, ShieldAlert, Cpu, Lock, Loader2, X } from 'lucide-react';
-import { AttackLog } from '../lib/objectives';
 import { useAttackLog } from '../hooks/useAttackLog';
 
 interface RequestStep {

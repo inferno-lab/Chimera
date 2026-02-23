@@ -46,13 +46,13 @@ to_account.balance += amount`
     language: "javascript",
     vulnerable: `// UNSAFE: Directly injecting user input into the DOM
 const searchQuery = new URLSearchParams(window.location.search).get('q');
-document.getElementById('search-results').innerHTML = `Results for: \${searchQuery}`;`,
+document.getElementById('search-results').innerHTML = \`Results for: \${searchQuery}\`;`,
     secure: `// SAFE: Use textContent or sanitization libraries
 const searchQuery = new URLSearchParams(window.location.search).get('q');
 const resultsElement = document.getElementById('search-results');
 
 // Option A: textContent (safest for simple text)
-resultsElement.textContent = `Results for: \${searchQuery}`;
+resultsElement.textContent = \`Results for: \${searchQuery}\`;
 
 // Option B: Sanitization (if you NEED HTML)
 // resultsElement.innerHTML = DOMPurify.sanitize(searchQuery);`

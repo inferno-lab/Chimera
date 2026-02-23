@@ -164,7 +164,7 @@ describe('CodeRemediationModal', () => {
     });
 
     it('clears pending timeout on component unmount', async () => {
-      const clearSpy = vi.spyOn(global, 'clearTimeout');
+      const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
       const { unmount } = render(<CodeRemediationModal {...defaultProps} />);
       const copyButton = screen.getByLabelText(/Copy vulnerable code/i);
       

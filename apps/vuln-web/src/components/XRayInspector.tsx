@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Scan, 
-  X, 
-  ChevronRight, 
-  ChevronDown, 
-  Play, 
-  Copy, 
-  Check, 
+import {
+  Scan,
+  X,
+  ChevronRight,
+  Play,
+  Copy,
+  Check,
   AlertCircle,
   ArrowRight,
   Database,

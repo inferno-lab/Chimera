@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, CheckCircle2, Circle, Target, ChevronDown, ChevronUp } from 'lucide-react';
-import { KILL_CHAIN_OBJECTIVES, Objective, AttackLog } from '../lib/objectives';
+import { KILL_CHAIN_OBJECTIVES } from '../lib/objectives';
 import { useAttackLog } from '../hooks/useAttackLog';
 
 const STORAGE_KEY = 'chimera-kill-chain';

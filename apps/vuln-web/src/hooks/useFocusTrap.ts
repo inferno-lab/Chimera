@@ -1,10 +1,10 @@
-import { useEffect, useRef, RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 
 export const useFocusTrap = (
-  isOpen: boolean, 
-  onClose: () => void, 
+  isOpen: boolean,
+  onClose: () => void,
   active: boolean = true
-): RefObject<HTMLDivElement | null> => {
+) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);

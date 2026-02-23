@@ -1,17 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Activity, 
-  Landmark, 
-  ShoppingBag, 
-  Radio, 
-  Zap, 
-  ShieldAlert, 
-  Wifi, 
-  Building2, 
-  Cpu, 
-  Shield, 
-  Trophy 
+import {
+  Activity,
+  Landmark,
+  ShoppingBag,
+  Radio,
+  Zap,
+  ShieldAlert,
+  Wifi,
+  Building2,
+  Cpu,
+  Shield,
+  Trophy,
+  Bot
 } from 'lucide-react';
 
 const PortalCard: React.FC<{
