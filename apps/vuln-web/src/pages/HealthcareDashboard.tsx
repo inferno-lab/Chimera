@@ -12,6 +12,7 @@ import {
   Info
 } from 'lucide-react';
 import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
 
 const healthcareInfo: VulnerabilityInfo = {
   title: "Healthcare System Vulnerabilities",
@@ -89,6 +90,7 @@ export const HealthcareDashboard: React.FC = () => {
               onClick={() => setShowInfo(true)}
               className="p-1.5 text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
               title="View Vulnerability Info"
+              aria-label="View Vulnerability Info"
             >
               <Info className="w-5 h-5" />
             </button>
@@ -139,6 +141,7 @@ export const HealthcareDashboard: React.FC = () => {
               <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-500" />
                 Electronic Health Records
+                <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
               </h2>
               <form onSubmit={handleSearch} className="relative w-full md:w-64" id="healthcare-search-form">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -150,6 +153,9 @@ export const HealthcareDashboard: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                <div className="absolute -top-6 right-0">
+                  <HintChip label="SQLi" onClick={() => setShowInfo(true)} />
+                </div>
               </form>
             </div>
 

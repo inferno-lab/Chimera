@@ -148,6 +148,14 @@ export const Home: React.FC = () => {
           color="bg-red-600"
           api="/api/v1/admin"
         />
+        <PortalCard 
+          to="/ai-lab"
+          title="AI Research Lab"
+          description="GenAI & LLM security testing ground for prompt injection, SSRF, and RAG vulnerabilities."
+          icon={<Bot className="w-6 h-6" />}
+          color="bg-fuchsia-600"
+          api="/api/v1/genai"
+        />
       </div>
     </div>
   );

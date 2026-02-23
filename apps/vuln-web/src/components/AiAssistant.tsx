@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Bot, Minimize2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Minimize2, Paperclip, Globe } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -13,7 +13,9 @@ export const AiAssistant: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [urlMode, setUrlMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -23,14 +25,112 @@ export const AiAssistant: React.FC = () => {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  const dispatchAttackLog = (type: string, path: string, payload: string, status: 'blocked' | 'allowed' = 'allowed') => {
+    const event = new CustomEvent('chimera:attack-log', {
+      detail: {
+        id: Math.random().toString(36).substring(2, 11),
+        timestamp: new Date().toLocaleTimeString(),
+        method: 'POST',
+        path,
+        payload,
+        type,
+        status,
+        source_ip: '10.0.0.5' // Simulated User IP
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', content: `Uploading file: ${file.name}` }]);
+
+    dispatchAttackLog('FileUpload', '/api/v1/genai/knowledge/upload', `filename=${file.name}`);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/v1/genai/knowledge/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      
+      const data = await res.json();
+      
+      let responseText = `File uploaded successfully. Doc ID: ${data.doc_id}`;
+      if (data.warning) {
+        responseText += `\n\nWARNING: ${data.warning}`;
+        dispatchAttackLog('FileUpload', '/api/v1/genai/knowledge/upload', `filename=${file.name} [VULN TRIGGERED]`, 'allowed');
+      }
+      if (data.vulnerability) {
+        responseText += `\n\n[System Alert]: ${data.vulnerability}`;
+      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error uploading file.' }]);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleBrowse = async (url: string) => {
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', content: `Browsing: ${url}` }]);
+
+    dispatchAttackLog('SSRF', '/api/v1/genai/agent/browse', `url=${url}`);
+
+    try {
+      const res = await fetch('/api/v1/genai/agent/browse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      
+      if (!res.ok) throw new Error(`Browse failed: ${res.status}`);
+      
+      const data = await res.json();
+      
+      let responseText = data.content || data.summary || 'Content retrieved.';
+      if (data.vulnerability) {
+        responseText += `\n\n[System Alert]: ${data.vulnerability}`;
+        dispatchAttackLog('SSRF', '/api/v1/genai/agent/browse', `url=${url} [VULN TRIGGERED]`, 'allowed');
+      }
+
+      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error browsing URL.' }]);
+    } finally {
+      setLoading(false);
+      setUrlMode(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
+
+    if (urlMode) {
+      handleBrowse(input);
+      setInput('');
+      return;
+    }
 
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setLoading(true);
+
+    // Detect potential injection attempts for logging
+    const isPotentialAttack = userMsg.includes('ignore') || userMsg.includes('system') || userMsg.includes('sql');
+    dispatchAttackLog('GenAI', '/api/v1/genai/chat', userMsg, isPotentialAttack ? 'blocked' : 'allowed');
 
     try {
       const res = await fetch('/api/v1/genai/chat', {
@@ -51,6 +151,7 @@ export const AiAssistant: React.FC = () => {
     return (
       <button 
         onClick={() => setIsOpen(true)}
+        aria-label="Open AI Support Chat"
         className="fixed bottom-6 right-6 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all hover:scale-110 z-50 group"
       >
         <MessageSquare className="w-6 h-6" />
@@ -78,10 +179,10 @@ export const AiAssistant: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => setIsOpen(false)} aria-label="Minimize Chat" className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors">
             <Minimize2 className="w-4 h-4" />
           </button>
-          <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors">
+          <button onClick={() => setIsOpen(false)} aria-label="Close Chat" className="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -130,27 +231,68 @@ export const AiAssistant: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-100">
-        <div className="relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about system status..."
-            className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+      <div className="bg-white border-t border-slate-100">
+        <div className="flex gap-1 px-3 pt-2">
+           <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()} 
+            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+            title="Upload Knowledge Base (RAG)"
+            aria-label="Upload Knowledge Base"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+            aria-hidden="true"
           />
           <button 
-            type="submit" 
-            disabled={!input.trim() || loading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            type="button" 
+            onClick={() => {
+              setUrlMode(!urlMode);
+              setInput('');
+            }}
+            className={`p-1.5 rounded transition-colors ${urlMode ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
+            title="Browse Web (Agent)"
+            aria-label="Toggle URL browsing mode"
+            aria-pressed={urlMode}
           >
-            <Send className="w-4 h-4" />
+            <Globe className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-[10px] text-center text-slate-400 mt-2">
-          AI responses may be inaccurate or vulnerable.
-        </p>
-      </form>
+        
+        <form onSubmit={handleSubmit} className="p-3 pt-1">
+          <div className="relative">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={urlMode ? "Enter URL to browse..." : "Ask about system status..."}
+              className={`w-full pl-4 pr-10 py-3 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${
+                urlMode 
+                  ? 'border-blue-200 focus:ring-blue-500/20 focus:border-blue-500 placeholder-blue-300' 
+                  : 'border-slate-200 focus:ring-slate-500/20 focus:border-slate-500'
+              }`}
+            />
+            <button 
+              type="submit" 
+              disabled={!input.trim() || loading}
+              aria-label={urlMode ? "Browse URL" : "Send Message"}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                urlMode ? 'bg-blue-500 hover:bg-blue-600' : 'bg-slate-900 hover:bg-slate-800'
+              }`}
+            >
+              {urlMode ? <Globe className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-[10px] text-center text-slate-400 mt-2">
+            AI responses may be inaccurate or vulnerable.
+          </p>
+        </form>
+      </div>
     </div>
   );
 };

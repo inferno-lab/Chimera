@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Terminal, X, Shield, Activity } from 'lucide-react';
 
 interface AttackLog {
@@ -7,7 +7,7 @@ interface AttackLog {
   method: string;
   path: string;
   payload?: string;
-  type: 'SQLi' | 'XSS' | 'RCE' | 'SSRF' | 'XXE' | 'Auth' | 'Info' | 'GenAI';
+  type: 'SQLi' | 'XSS' | 'RCE' | 'SSRF' | 'XXE' | 'Auth' | 'Info' | 'GenAI' | 'FileUpload';
   status: 'blocked' | 'allowed';
   source_ip: string;
 }
@@ -28,12 +28,25 @@ export const RedTeamConsole: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Simulate receiving attack logs (mock for now, would hook into websocket)
+  // Listen for real attack logs from other components
+  useEffect(() => {
+    const handleAttackLog = (e: CustomEvent<AttackLog>) => {
+      setLogs(prev => [...prev.slice(-49), e.detail]); // Keep last 50 logs
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    };
+
+    window.addEventListener('chimera:attack-log', handleAttackLog as unknown as EventListener);
+    return () => window.removeEventListener('chimera:attack-log', handleAttackLog as unknown as EventListener);
+  }, []);
+
+  // Simulate receiving background attack traffic
   useEffect(() => {
     if (!isOpen) return;
 
     const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
+      if (Math.random() > 0.8) { // Reduced frequency
         const attackTypes: AttackLog['type'][] = ['SQLi', 'XSS', 'RCE', 'SSRF', 'XXE', 'GenAI'];
         const paths = [
           '/api/v1/healthcare/records/search',
@@ -49,7 +62,7 @@ export const RedTeamConsole: React.FC = () => {
         ];
 
         const newLog: AttackLog = {
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.random().toString(36).substring(2, 11),
           timestamp: new Date().toLocaleTimeString(),
           method: 'POST',
           path: paths[Math.floor(Math.random() * paths.length)],
@@ -59,16 +72,22 @@ export const RedTeamConsole: React.FC = () => {
           source_ip: `192.168.1.${Math.floor(Math.random() * 255)}`
         };
 
-        setLogs(prev => [...prev.slice(-19), newLog]); // Keep last 20 logs
+        setLogs(prev => [...prev.slice(-49), newLog]);
         
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [isOpen]);
+
+  const stats = useMemo(() => ({
+    sqli: logs.filter(l => l.type === 'SQLi').length,
+    xss: logs.filter(l => l.type === 'XSS').length,
+    genai: logs.filter(l => l.type === 'GenAI').length,
+  }), [logs]);
 
   if (!isOpen) return null;
 
@@ -126,9 +145,9 @@ export const RedTeamConsole: React.FC = () => {
       <div className="px-4 py-1 bg-slate-900 border-t border-slate-800 flex justify-between text-[10px] text-slate-500">
         <div>Listening on port 8880...</div>
         <div className="flex gap-4">
-          <span>SQLi: <span className="text-slate-300">12</span></span>
-          <span>XSS: <span className="text-slate-300">4</span></span>
-          <span>RCE: <span className="text-slate-300">8</span></span>
+          <span>SQLi: <span className="text-slate-300">{stats.sqli}</span></span>
+          <span>XSS: <span className="text-slate-300">{stats.xss}</span></span>
+          <span>GenAI: <span className="text-slate-300">{stats.genai}</span></span>
         </div>
       </div>
     </div>

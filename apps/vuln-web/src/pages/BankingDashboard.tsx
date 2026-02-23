@@ -7,14 +7,38 @@ import {
   Shield,
   TrendingUp,
   History,
-  Send
+  Send,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+
+const bankingInfo: VulnerabilityInfo = {
+  title: "Banking System Vulnerabilities",
+  description: "This portal demonstrates critical banking flaws including business logic manipulation, race conditions, and improper access controls.",
+  swaggerTag: "Banking",
+  vulns: [
+    {
+      name: "Business Logic Manipulation (Transfer)",
+      description: "Negative transfer amounts or manipulating the 'from' account ID can lead to unauthorized credit or debt.",
+      severity: "critical",
+      endpoint: "POST /api/v1/banking/transfer"
+    },
+    {
+      name: "BOLA / IDOR (Accounts)",
+      description: "Listing accounts without proper session validation allows viewing any user's balance by iterating account IDs.",
+      severity: "high",
+      endpoint: "GET /api/v1/banking/accounts"
+    }
+  ]
+};
 
 export const BankingDashboard: React.FC = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferAmount, setTransferAmount] = useState('');
   const [transferStatus, setTransferStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     fetch('/api/v1/banking/accounts')
@@ -61,12 +85,21 @@ export const BankingDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={bankingInfo} />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             <Landmark className="w-8 h-8 text-blue-600" />
             SecureBank Pro
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
           </h1>
           <p className="text-slate-500">Personal Banking Dashboard • Welcome back, User</p>
         </div>
@@ -74,6 +107,11 @@ export const BankingDashboard: React.FC = () => {
           <Shield className="w-4 h-4" />
           Secure Session Active
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-lg font-bold text-slate-800">Your Accounts</h2>
+        <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
       </div>
 
       {/* Account Cards */}
@@ -103,7 +141,10 @@ export const BankingDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Quick Transfer */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative">
+          <div className="absolute -top-3 right-4">
+            <HintChip label="Logic Manipulation" onClick={() => setShowInfo(true)} />
+          </div>
           <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5 text-blue-500" />
             Quick Transfer

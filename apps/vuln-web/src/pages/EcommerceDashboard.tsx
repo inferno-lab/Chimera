@@ -5,13 +5,37 @@ import {
   ShoppingCart,
   Star,
   Package,
-  Truck
+  Truck,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+
+const ecommerceInfo: VulnerabilityInfo = {
+  title: "E-commerce System Vulnerabilities",
+  description: "This portal demonstrates classic retail platform flaws, including reflected XSS in search results and SQL injection in the product catalog.",
+  swaggerTag: "Ecommerce",
+  vulns: [
+    {
+      name: "Reflected XSS (Search)",
+      description: "The search results page renders user input directly into the HTML without sanitization, allowing script injection.",
+      severity: "high",
+      endpoint: "GET /api/v1/ecommerce/products/search?query="
+    },
+    {
+      name: "SQL Injection (Catalog)",
+      description: "The product filtering and search logic uses unsanitized strings in database queries.",
+      severity: "critical",
+      endpoint: "GET /api/v1/ecommerce/products"
+    }
+  ]
+};
 
 export const EcommerceDashboard: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
 
   const fetchProducts = async (query = '') => {
     setLoading(true);
@@ -42,12 +66,21 @@ export const EcommerceDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={ecommerceInfo} />
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             <ShoppingBag className="w-8 h-8 text-orange-500" />
             ShopRight Retail
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-orange-600 bg-orange-50 rounded-full hover:bg-orange-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
           </h1>
           <p className="text-slate-500">Premium Goods & Electronics</p>
         </div>
@@ -62,6 +95,9 @@ export const EcommerceDashboard: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
+            <div className="absolute -top-6 right-0">
+               <HintChip label="SQLi" onClick={() => setShowInfo(true)} />
+            </div>
           </form>
           <button className="relative p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
             <ShoppingCart className="w-5 h-5 text-slate-700" />
@@ -72,10 +108,11 @@ export const EcommerceDashboard: React.FC = () => {
 
       {/* Hero Banner */}
       {searchQuery && (
-        <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6">
+        <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6 flex justify-between items-center">
           <p className="text-orange-800 text-sm">
             Search results for: <span className="font-bold" dangerouslySetInnerHTML={{ __html: searchQuery }} />
           </p>
+          <HintChip label="Reflected XSS" onClick={() => setShowInfo(true)} />
         </div>
       )}
       <div className="bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl p-8 text-white mb-10 shadow-lg relative overflow-hidden">
