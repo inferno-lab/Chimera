@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-frontend:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+    continue-on-error: true # eslint deps missing from devDependencies
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run vuln-web:lint
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run vuln-web:test
+
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/vuln-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/vuln-api/uv.lock
+      - run: uv sync --extra dev --frozen
+      - run: make test-ci
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Node / pnpm ---
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --- Python / uv ---
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/vuln-api/uv.lock
+
+      # --- Build SPA ---
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run vuln-web:build:bundle
+
+      # --- Verify SPA output ---
+      - name: Verify SPA bundle exists
+        run: test -f apps/vuln-api/app/web_dist/index.html
+
+      # --- Build wheel ---
+      - name: Build wheel
+        working-directory: apps/vuln-api
+        run: uv build
+
+      # --- Verify wheel contents ---
+      - name: Verify wheel contains web_dist
+        working-directory: apps/vuln-api
+        run: |
+          wheel=$(ls dist/*.whl)
+          python -m zipfile -l "$wheel" | grep web_dist/
