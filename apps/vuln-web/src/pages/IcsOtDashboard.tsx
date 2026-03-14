@@ -1,145 +1,174 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
-  Terminal, 
   Cpu, 
+  Activity, 
+  Terminal, 
   ShieldAlert, 
-  Eye, 
-  Activity,
   Box,
   Binary,
   AlertTriangle,
-  Lock
+  Lock,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const IcsOtDashboard: React.FC = () => {
+  const { loading, request } = useApi();
+  const { info: icsInfo } = useVulnerabilityInfo('ics_ot');
   const [systems, setSystems] = useState<any[]>([]);
   const [controllers, setControllers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [sysRes, ctrlRes] = await Promise.all([
-          fetch('/api/ics/scada/systems'),
-          fetch('/api/ics/controllers/status')
-        ]);
-        const sysData = await sysRes.json();
-        const ctrlData = await ctrlRes.json();
-        setSystems(sysData.scada_systems || []);
-        setControllers(ctrlData.controllers || []);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
+      const sysData = await request('/api/ics/scada/systems');
+      if (sysData) setSystems(sysData.scada_systems || []);
+      
+      const ctrlData = await request('/api/ics/controllers/status');
+      if (ctrlData) setControllers(ctrlData.controllers || []);
     };
     fetchData();
-  }, []);
+  }, [request]);
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {icsInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={icsInfo} 
+        />
+      )}
+      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3 underline decoration-blue-500/30">
-            <Cpu className="w-8 h-8 text-blue-600" />
-            Industrial Command Center
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3 underline decoration-blue-500/30">
+              <Cpu className="w-8 h-8 text-blue-600" />
+              Industrial Command Center
+            </h1>
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </div>
           <p className="text-slate-500 font-mono text-sm tracking-tight mt-1">OT/ICS Operational Intelligence Interface</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded shadow-sm text-sm font-bold hover:bg-slate-800 transition-all">
+          <button id="ics-cli-btn" className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded shadow-sm text-sm font-bold hover:bg-slate-800 transition-all">
             <Terminal className="w-4 h-4" />
             Modbus CLI
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded shadow-sm text-sm font-bold hover:bg-red-700 transition-all animate-pulse">
-            <AlertTriangle className="w-4 h-4" />
-            SIS Emergency Bypass
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded shadow-sm text-sm font-bold hover:bg-blue-700 transition-all">
+            <ShieldAlert className="w-4 h-4" />
+            Security Override
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* SCADA Systems Grid */}
-        <div className="lg:col-span-8 space-y-8">
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between font-mono">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2 uppercase text-xs tracking-widest">
-                <Activity className="w-4 h-4 text-blue-500" />
-                Active SCADA Instances
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Main SCADA Inventory */}
+          <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h2 className="font-bold text-slate-700 flex items-center gap-2 text-xs uppercase tracking-widest">
+                <Box className="w-4 h-4 text-blue-500" />
+                System Inventory
               </h2>
-              <span className="text-[10px] text-slate-400">Total Systems: {systems.length}</span>
+              <span className="text-[10px] font-bold text-slate-400">Total Nodes: {systems.length}</span>
             </div>
-            <div className="divide-y divide-slate-100">
-              {loading ? (
-                <div className="p-12 text-center font-mono text-slate-400">Querying field bus...</div>
-              ) : (
-                systems.map((sys) => (
-                  <div key={sys.system_id} className="p-6 hover:bg-blue-50/30 transition-colors group">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900">{sys.name}</h3>
-                          <span className={`w-2 h-2 rounded-full ${sys.status === 'operational' ? 'bg-emerald-500' : 'bg-yellow-500'}`} />
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">{sys.vendor} • {sys.model} • Protocol: {sys.protocol}</p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <div className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-mono">
-                            {sys.location}
-                          </div>
-                          <div className="text-[10px] text-blue-600 font-bold flex items-center gap-1 hover:underline cursor-pointer">
-                            <Eye className="w-3 h-3" />
-                            Launch HMI
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 group-hover:bg-white transition-colors">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">HMI Access Point</p>
-                        <code className="text-xs text-blue-600 font-bold">{sys.hmi_access}</code>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-4">System ID</th>
+                    <th className="p-4">Model / Vendor</th>
+                    <th className="p-4">Location</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Access</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic">Scanning OT network...</td></tr>
+                  ) : (
+                    systems.map((sys) => (
+                      <tr key={sys.system_id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-mono text-xs font-bold text-slate-900">{sys.system_id}</td>
+                        <td className="p-4">
+                          <div className="font-medium text-slate-900">{sys.model}</div>
+                          <div className="text-[10px] text-slate-500">{sys.vendor}</div>
+                        </td>
+                        <td className="p-4 text-slate-600">{sys.location}</td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {sys.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button className="text-blue-600 font-bold text-xs hover:underline">Launch HMI</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
           {/* Controllers Table */}
-          <div className="bg-slate-900 rounded-xl overflow-hidden shadow-2xl border border-slate-800">
+          <div className="bg-slate-900 rounded-xl overflow-hidden shadow-2xl border border-slate-800 relative">
+            <div className="absolute top-4 right-4">
+               <HintChip label="BOLA" onClick={() => setShowInfo(true)} />
+            </div>
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h2 className="font-bold text-slate-200 flex items-center gap-2 font-mono text-xs uppercase tracking-widest">
                 <Settings className="w-4 h-4 text-blue-400" />
-                Controller Telemetry
+                PLC Status Matrix
               </h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-slate-300 font-mono text-xs">
-                <thead className="bg-slate-800 text-slate-500 uppercase">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-slate-800/50 text-slate-500">
                   <tr>
-                    <th className="p-4">Controller ID</th>
-                    <th className="p-4">Vendor</th>
-                    <th className="p-4">Mode</th>
-                    <th className="p-4 text-center">CPU</th>
-                    <th className="p-4 text-center">Loops</th>
-                    <th className="p-4 text-center">Alarms</th>
+                    <th className="p-4">PLC ID</th>
+                    <th className="p-4">CPU %</th>
+                    <th className="p-4">Memory</th>
+                    <th className="p-4">Active Loops</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {controllers.map((ctrl) => (
-                    <tr key={ctrl.controller_id} className="hover:bg-blue-500/5 transition-colors">
+                    <tr key={ctrl.controller_id} className="text-slate-300 hover:bg-blue-500/5 transition-colors">
                       <td className="p-4 font-bold text-blue-400">{ctrl.controller_id}</td>
-                      <td className="p-4">{ctrl.vendor}</td>
-                      <td className="p-4 capitalize">{ctrl.mode}</td>
                       <td className="p-4">
-                        <div className="w-20 mx-auto bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full" style={{ width: `${ctrl.cpu_usage}%` }} />
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 bg-slate-800 h-1 rounded-full overflow-hidden">
+                            <div className="bg-blue-500 h-full" style={{ width: `${ctrl.cpu_usage}%` }} />
+                          </div>
+                          {ctrl.cpu_usage.toFixed(1)}%
                         </div>
                       </td>
-                      <td className="p-4 text-center">{ctrl.active_loops}</td>
-                      <td className="p-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-full ${ctrl.alarms_active > 0 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                          {ctrl.alarms_active}
-                        </span>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 bg-slate-800 h-1 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full" style={{ width: `${ctrl.memory_usage}%` }} />
+                          </div>
+                          {ctrl.memory_usage.toFixed(1)}%
+                        </div>
+                      </td>
+                      <td className="p-4 text-slate-500">{ctrl.active_loops}</td>
+                      <td className="p-4 text-right">
+                        <button className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700 hover:bg-slate-700">Debug</button>
                       </td>
                     </tr>
                   ))}
@@ -149,53 +178,53 @@ export const IcsOtDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="space-y-8">
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2 font-mono text-xs uppercase tracking-widest border-b border-slate-100 pb-2">
-              <Box className="w-4 h-4 text-orange-500" />
-              Device Integrity
+            <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+              <Activity className="w-4 h-4 text-red-500" />
+              Safety Systems
             </h2>
             <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-orange-50 border border-orange-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-orange-800 uppercase">Network Segment</span>
-                  <span className="text-[10px] font-bold text-orange-600 bg-white px-1.5 py-0.5 rounded">OT-DMZ</span>
+              <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-lg">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-emerald-800 uppercase">Emergency Shutdown</span>
+                  <span className="text-[10px] font-bold text-emerald-600">ARMED</span>
                 </div>
-                <p className="text-xs text-orange-700 leading-relaxed italic">Segmentation policy check: WARNING. Unpatched devices detected on critical segments.</p>
+                <p className="text-[10px] text-emerald-700">Safety Instrumented System (SIS) is operational.</p>
               </div>
-              <button className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
-                <ShieldAlert className="w-3 h-3 text-red-400" />
-                Network Lockdown
+              <button className="w-full py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-bold hover:bg-red-100 transition-all">
+                Manual SIS Bypass
               </button>
             </div>
           </div>
 
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed">
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 border-dashed relative">
+            <div className="absolute top-4 right-4">
+               <HintChip label="RCE" onClick={() => setShowInfo(true)} />
+            </div>
             <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2 font-mono text-xs uppercase tracking-widest">
               <Binary className="w-4 h-4 text-slate-500" />
               Register Manipulator
             </h2>
             <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Target Address</label>
-                <input type="text" placeholder="0x40001" className="w-full p-2 bg-white border border-slate-200 rounded font-mono text-xs" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Value (Integer)</label>
-                <input type="number" placeholder="0" className="w-full p-2 bg-white border border-slate-200 rounded font-mono text-xs" />
-              </div>
-              <button className="w-full py-2 border-2 border-slate-900 text-slate-900 rounded font-bold text-xs hover:bg-slate-900 hover:text-white transition-all">
-                Write Coils
+              <input type="text" placeholder="Register Address (e.g. 40001)" className="w-full p-2 bg-white border border-slate-200 rounded text-xs font-mono" />
+              <input type="number" placeholder="Value" className="w-full p-2 bg-white border border-slate-200 rounded text-xs font-mono" />
+              <button className="w-full py-2 bg-slate-900 text-white rounded font-bold text-xs hover:bg-slate-800 transition-all">
+                Write Register
               </button>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl border border-blue-200 bg-blue-50 flex items-start gap-3">
-            <Lock className="w-5 h-5 text-blue-600 shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-blue-900">Safety Policy Enforcement</p>
-              <p className="text-[10px] text-blue-700 mt-1">Interlock system is currently active. Bypassing safety limits requires administrative key-card authorization.</p>
+          <div className="p-6 bg-blue-600 rounded-xl text-white shadow-lg">
+            <h2 className="font-bold mb-2 flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Isolation Status
+            </h2>
+            <p className="text-xs text-blue-100 mb-4 leading-relaxed">
+              Network segment is currently bridged to the corporate IT domain for maintenance.
+            </p>
+            <div className="w-full bg-blue-700 h-2 rounded-full overflow-hidden">
+              <div className="bg-white h-full w-3/4" />
             </div>
           </div>
         </div>

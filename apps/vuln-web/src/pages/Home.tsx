@@ -54,11 +54,41 @@ const PortalCard: React.FC<{
 export const Home: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-12">
-      <div className="max-w-2xl mb-12">
-        <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">Multi-Industry Demo Portals</h1>
-        <p className="text-lg text-slate-600 dark:text-slate-400">
-          Select a industry-specific portal to test WAF policies, vulnerability detection, and resilience patterns across different data schemas.
-        </p>
+      <div className="mb-12 bg-slate-800/40 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-700/50 flex gap-8">
+        <div className="flex-1">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl font-light text-slate-100 dark:text-white mb-4 tracking-tight">Multi-Vertical Attack Surfaces</h1>
+            <p className="text-blue-400 dark:text-blue-300 text-sm font-normal leading-relaxed max-w-lg">
+              Select an industry-specific portal to test WAF policies, vulnerability detection, and resilience patterns across different data schemas.
+            </p>
+          </div>
+        </div>
+
+        <div className="border-l border-slate-600/50 pl-6">
+          <h4 className="text-xs uppercase tracking-widest font-medium text-slate-400 dark:text-slate-400 italic mb-4">Keyboard Shortcuts</h4>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-300 dark:text-slate-300 font-medium">
+              <span className="font-bold tracking-wider text-fuchsia-400 mr-1">Ctrl + ~</span>
+              <span className="text-slate-500">|</span>
+              <span className="ml-2">Red-Team Console</span>
+            </p>
+            <p className="text-xs text-slate-300 dark:text-slate-300 font-medium">
+              <span className="font-bold tracking-wider text-fuchsia-400 mr-1">Ctrl + H</span>
+              <span className="text-slate-500">|</span>
+              <span className="ml-2">Exploit Hints</span>
+            </p>
+            <p className="text-xs text-slate-300 dark:text-slate-300 font-medium">
+              <span className="font-bold tracking-wider text-fuchsia-400 mr-1">Ctrl + X</span>
+              <span className="text-slate-500">|</span>
+              <span className="ml-2">X-Ray Inspector</span>
+            </p>
+            <p className="text-xs text-slate-300 dark:text-slate-300 font-medium">
+              <span className="font-bold tracking-wider text-fuchsia-400 mr-1">Ctrl + B</span>
+              <span className="text-slate-500">|</span>
+              <span className="ml-2">WAF Visualizer</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">        <PortalCard 

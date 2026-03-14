@@ -1,16 +1,23 @@
+import { API_BASE_URL } from '../lib/config';
 import React, { useState } from 'react';
 import {
   Building2,
   Search,
   FileText,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const GovernmentDashboard: React.FC = () => {
+  const { info: govInfo } = useVulnerabilityInfo('gov');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +26,7 @@ export const GovernmentDashboard: React.FC = () => {
     setSearching(true);
     try {
       // Vulnerable search endpoint
-      const res = await fetch(`/api/v1/gov/benefits/search?q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/gov/benefits/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       setSearchResults(data.results || []);
     } catch (err) {
@@ -31,11 +38,26 @@ export const GovernmentDashboard: React.FC = () => {
 
   return (
     <div className="bg-slate-100 min-h-full">
+      {govInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={govInfo} 
+        />
+      )}
+      
       <div className="bg-slate-800 text-white pb-24">
         <div className="container mx-auto px-4 pt-12 pb-12">
           <div className="flex items-center gap-3 mb-6">
             <Building2 className="w-10 h-10 text-slate-300" />
             <h1 className="text-3xl font-bold tracking-tight">GovPortal Services</h1>
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-white bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
           </div>
           <p className="text-xl text-slate-300 max-w-2xl">
             Secure access to government services, benefits, and public records for citizens and authorized personnel.
@@ -46,11 +68,15 @@ export const GovernmentDashboard: React.FC = () => {
       <div className="container mx-auto px-4 -mt-16 pb-12">
         {/* Main Search Card */}
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Find Benefits & Services</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Find Benefits & Services</h2>
+            <HintChip label="SQLi" onClick={() => setShowInfo(true)} />
+          </div>
           <form onSubmit={handleSearch} className="flex gap-4">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
+                id="gov-search-input"
                 type="text" 
                 placeholder="Search by Applicant Name or ID..." 
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 transition-all"
@@ -66,7 +92,10 @@ export const GovernmentDashboard: React.FC = () => {
           {/* Search Results */}
           {(searching || searchResults.length > 0) && (
             <div className="mt-8 border-t border-slate-100 pt-6">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Search Results</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Search Results</h3>
+                <HintChip label="PII Exposure" onClick={() => setShowInfo(true)} />
+              </div>
               {searching ? (
                 <p className="text-slate-500">Searching records...</p>
               ) : (

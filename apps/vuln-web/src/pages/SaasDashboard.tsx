@@ -6,29 +6,41 @@ import {
   CreditCard,
   Plus,
   MoreHorizontal,
-  Briefcase
+  Briefcase,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const SaasDashboard: React.FC = () => {
+  const { loading, request } = useApi();
+  const { info: saasInfo } = useVulnerabilityInfo('saas');
   const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
   const tenantId = 'tenant-1'; // Hardcoded for demo
 
   useEffect(() => {
-    fetch(`/api/v1/saas/tenants/${tenantId}/projects`)
-      .then(res => res.json())
-      .then(data => {
+    const fetchProjects = async () => {
+      const data = await request(`/api/v1/saas/tenants/${tenantId}/projects`);
+      if (data) {
         setProjects(data.projects || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+      }
+    };
+    fetchProjects();
+  }, [request, tenantId]);
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
+      {saasInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={saasInfo} 
+        />
+      )}
+      
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col">
         <div className="p-6">
@@ -53,7 +65,10 @@ export const SaasDashboard: React.FC = () => {
           ))}
         </nav>
         <div className="p-4 border-t border-slate-200">
-          <div className="bg-slate-50 rounded-lg p-4">
+          <div className="bg-slate-50 rounded-lg p-4 relative">
+            <div className="absolute top-2 right-2">
+               <HintChip label="BOLA" onClick={() => setShowInfo(true)} />
+            </div>
             <p className="text-xs font-semibold text-slate-500 mb-2">STORAGE USED</p>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-2">
               <div className="bg-indigo-500 h-full w-3/4" />
@@ -67,13 +82,25 @@ export const SaasDashboard: React.FC = () => {
       <div className="flex-1 bg-slate-50 p-8 overflow-y-auto">
         <header className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+              <button 
+                onClick={() => setShowInfo(true)}
+                className="p-1.5 text-indigo-600 bg-indigo-50 rounded-full hover:bg-indigo-100 transition-colors"
+                aria-label="View Vulnerability Info"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-slate-500 text-sm">Manage your team's ongoing initiatives.</p>
           </div>
-          <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            New Project
-          </button>
+          <div className="flex items-center gap-3">
+            <HintChip label="Mass Assignment" onClick={() => setShowInfo(true)} />
+            <button id="saas-new-project-btn" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              New Project
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

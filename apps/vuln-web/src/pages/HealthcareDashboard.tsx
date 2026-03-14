@@ -11,66 +11,39 @@ import {
   MoreVertical,
   Info
 } from 'lucide-react';
-import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
 import { HintChip } from '../components/HintChip';
-
-const healthcareInfo: VulnerabilityInfo = {
-  title: "Healthcare System Vulnerabilities",
-  description: "This portal demonstrates common security flaws in Electronic Health Record (EHR) systems, focusing on PHI exposure and injection attacks.",
-  swaggerTag: "Healthcare",
-  vulns: [
-    {
-      name: "SQL Injection (Search)",
-      description: "The patient search functionality is vulnerable to SQL injection. Attackers can bypass authentication or extract the entire database.",
-      severity: "critical",
-      endpoint: "GET /api/v1/healthcare/records/search?q="
-    },
-    {
-      name: "Broken Object Level Authorization (BOLA/IDOR)",
-      description: "Medical records can be accessed by changing the record ID in the API call, even without ownership permissions.",
-      severity: "high",
-      endpoint: "GET /api/v1/healthcare/records/{record_id}"
-    },
-    {
-      name: "PHI Data Exposure",
-      description: "API responses contain excessive sensitive data (SSNs, full addresses) that is not needed for the frontend view.",
-      severity: "high",
-      endpoint: "GET /api/v1/healthcare/records"
-    }
-  ]
-};
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const HealthcareDashboard: React.FC = () => {
+  const { loading, error, request } = useApi();
+  const { info: healthcareInfo } = useVulnerabilityInfo('healthcare');
   const [records, setRecords] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfo, setShowInfo] = useState(false);
 
   const fetchRecords = async (query = '') => {
-    setLoading(true);
     try {
-      const url = query 
+      const path = query 
         ? `/api/v1/healthcare/records/search?q=${encodeURIComponent(query)}` 
-        : '/api/v1/healthcare/records';
+        : `/api/v1/healthcare/records`;
       
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await request(path);
       
-      // The search endpoint returns {results, count}, list returns {records, total_count}
-      const recordsList = data.results || data.records || [];
-      setRecords(recordsList);
-      setLoading(false);
+      if (data) {
+        // The search endpoint returns {results, count}, list returns {records, total_count}
+        const recordsList = data.results || data.records || [];
+        setRecords(recordsList);
+      }
     } catch (err) {
       console.error(err);
-      setError('Connection to healthcare services failed. Verify the backend is online.');
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchRecords();
-  }, []);
+  }, [request]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +52,13 @@ export const HealthcareDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={healthcareInfo} />
+      {healthcareInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={healthcareInfo} 
+        />
+      )}
       
       {/* Dashboard Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

@@ -8,35 +8,56 @@ import {
   ShieldAlert,
   Settings,
   RefreshCw,
-  Zap
+  Zap,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const TelecomDashboard: React.FC = () => {
+  const { loading, request } = useApi();
+  const { info: telecomInfo } = useVulnerabilityInfo('telecom');
   const [subscriber, setSubscriber] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
   const subscriberId = 'SUB-12345'; // Hardcoded for demo
 
   useEffect(() => {
-    fetch(`/api/v1/telecom/subscribers/${subscriberId}/profile`)
-      .then(res => res.json())
-      .then(data => {
+    const fetchSubscriber = async () => {
+      const data = await request(`/api/v1/telecom/subscribers/${subscriberId}/profile`);
+      if (data) {
         setSubscriber(data.subscriber);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+      }
+    };
+    fetchSubscriber();
+  }, [request, subscriberId]);
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {telecomInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={telecomInfo} 
+        />
+      )}
+      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Radio className="w-8 h-8 text-purple-600" />
-            TelcoConnect
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <Radio className="w-8 h-8 text-purple-600" />
+              TelcoConnect
+            </h1>
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-purple-600 bg-purple-50 rounded-full hover:bg-purple-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </div>
           <p className="text-slate-500">Network & Subscriber Management Portal</p>
         </div>
         <div className="flex gap-3">
@@ -59,6 +80,7 @@ export const TelecomDashboard: React.FC = () => {
               <h2 className="font-bold text-slate-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-purple-500" />
                 Subscriber Profile
+                <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
               </h2>
               <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase rounded-full">Active</span>
             </div>
@@ -101,13 +123,16 @@ export const TelecomDashboard: React.FC = () => {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative">
+              <div className="absolute top-4 right-4">
+                 <HintChip label="Logic Flaw" onClick={() => setShowInfo(true)} />
+              </div>
               <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center mb-4 text-orange-600">
                 <Smartphone className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-slate-900 mb-2">SIM Management</h3>
               <p className="text-xs text-slate-500 mb-4 leading-relaxed">Change SIM cards or activate an eSIM for this subscriber. Identity verification is required.</p>
-              <button className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+              <button id="telecom-sim-swap-btn" className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
                 <RefreshCw className="w-3 h-3" />
                 Initiate SIM Swap
               </button>

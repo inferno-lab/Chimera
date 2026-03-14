@@ -9,38 +9,59 @@ import {
   Car, 
   Home as HomeIcon,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const InsuranceDashboard: React.FC = () => {
+  const { loading, request } = useApi();
+  const { info: insuranceInfo } = useVulnerabilityInfo('insurance');
   const [policies, setPolicies] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
-    fetch('/api/v1/insurance/policies')
-      .then(res => res.json())
-      .then(data => {
+    const fetchPolicies = async () => {
+      const data = await request(`/api/v1/insurance/policies`);
+      if (data) {
         setPolicies(data.policies || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+      }
+    };
+    fetchPolicies();
+  }, [request]);
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {insuranceInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={insuranceInfo} 
+        />
+      )}
+      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
-            ProtectFlow Insurance
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+              <Shield className="w-8 h-8 text-blue-600" />
+              ProtectFlow Insurance
+            </h1>
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </div>
           <p className="text-slate-500">Policy Management & Claims Processing</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <button id="insurance-coverage-btn" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <Search className="w-4 h-4" />
             Check Coverage
           </button>
@@ -59,6 +80,7 @@ export const InsuranceDashboard: React.FC = () => {
               <h2 className="font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck className="w-5 h-5 text-emerald-500" />
                 Active Policies
+                <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
               </h2>
               <span className="text-[10px] font-bold text-slate-400 uppercase">Coverage Active</span>
             </div>
@@ -103,6 +125,7 @@ export const InsuranceDashboard: React.FC = () => {
               <h2 className="font-bold text-slate-900 flex items-center gap-2">
                 <ClipboardList className="w-5 h-5 text-blue-500" />
                 Recent Claims
+                <HintChip label="SQLi" onClick={() => setShowInfo(true)} />
               </h2>
             </div>
             <div className="p-12 text-center text-slate-400">

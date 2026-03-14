@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Landmark,
   CreditCard,
@@ -10,89 +10,86 @@ import {
   Send,
   Info
 } from 'lucide-react';
-import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
 import { HintChip } from '../components/HintChip';
-
-const bankingInfo: VulnerabilityInfo = {
-  title: "Banking System Vulnerabilities",
-  description: "This portal demonstrates critical banking flaws including business logic manipulation, race conditions, and improper access controls.",
-  swaggerTag: "Banking",
-  vulns: [
-    {
-      name: "Business Logic Manipulation (Transfer)",
-      description: "Negative transfer amounts or manipulating the 'from' account ID can lead to unauthorized credit or debt.",
-      severity: "critical",
-      endpoint: "POST /api/v1/banking/transfer"
-    },
-    {
-      name: "BOLA / IDOR (Accounts)",
-      description: "Listing accounts without proper session validation allows viewing any user's balance by iterating account IDs.",
-      severity: "high",
-      endpoint: "GET /api/v1/banking/accounts"
-    }
-  ]
-};
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const BankingDashboard: React.FC = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [transferAmount, setTransferAmount] = useState('');
   const [transferStatus, setTransferStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showInfo, setShowInfo] = useState(false);
+  
+  // Separate API instances to isolate loading states
+  const accountsApi = useApi();
+  const transferApi = useApi();
+  
+  // Fetch vulnerability documentation from VaaS API
+  const { info: bankingInfo } = useVulnerabilityInfo('banking');
+
+  /**
+   * Fetches the current user's accounts.
+   * Stability: accountsApi.request is memoized in useApi hook.
+   */
+  const fetchAccounts = useCallback(async () => {
+    const data = await accountsApi.request('/api/v1/banking/accounts');
+    if (data && !data.error) {
+      setAccounts(data.accounts || []);
+    }
+  }, [accountsApi.request]);
 
   useEffect(() => {
-    fetch('/api/v1/banking/accounts')
-      .then(res => res.json())
-      .then(data => {
-        setAccounts(data.accounts || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+    fetchAccounts();
+  }, [fetchAccounts]);
 
-  const handleTransfer = async (e: React.FormEvent) => {
+  const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!accounts.length) return;
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const amountStr = formData.get('amount') as string;
+    const to = formData.get('to');
+
+    // Basic client-side guard (educationally vulnerable, but prevents zero-dollar spam)
+    if (!amountStr || Number(amountStr) <= 0) return;
+
+    setTransferStatus('idle');
+    
+    // Backend uses 'account_id', not 'id'. Using demo ID as default.
+    const fromAccount = accounts[0]?.account_id || 'ACC-user-demo-001';
 
     try {
-      const res = await fetch('/api/v1/banking/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from_account: accounts[0].account_id,
-          to_account: 'ACC-external-999', // Simulating external transfer
-          amount: parseFloat(transferAmount)
-        })
+      const data = await transferApi.request('/api/v1/banking/transfer', { 
+        from_account: fromAccount,
+        to_account: to, 
+        amount: Number(amountStr) 
       });
-      
-      if (res.ok) {
+
+      // Check for truthy data AND lack of error payload (API contract)
+      if (data && !data.error) {
         setTransferStatus('success');
-        setTransferAmount('');
-        // Refresh accounts
-        const accRes = await fetch('/api/v1/banking/accounts');
-        const accData = await accRes.json();
-        setAccounts(accData.accounts || []);
+        form.reset();
+        fetchAccounts();
       } else {
         setTransferStatus('error');
       }
     } catch (err) {
+      console.error('Transfer exception:', err);
       setTransferStatus('error');
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={bankingInfo} />
-
+      {bankingInfo && <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={bankingInfo} />}
+      
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Landmark className="w-8 h-8 text-blue-600" />
-            SecureBank Pro
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <Landmark className="w-8 h-8 text-blue-600" />
+              SecureBank Pro
+            </h1>
             <button 
               onClick={() => setShowInfo(true)}
               className="p-1.5 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
@@ -100,119 +97,181 @@ export const BankingDashboard: React.FC = () => {
             >
               <Info className="w-5 h-5" />
             </button>
-          </h1>
-          <p className="text-slate-500">Personal Banking Dashboard • Welcome back, User</p>
-        </div>
-        <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-          <Shield className="w-4 h-4" />
-          Secure Session Active
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mb-4">
-        <h2 className="text-lg font-bold text-slate-800">Your Accounts</h2>
-        <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
-      </div>
-
-      {/* Account Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {loading ? (
-          <div className="col-span-2 text-center py-12 text-slate-400">Loading accounts...</div>
-        ) : (
-          accounts.map((acc, idx) => (
-            <div key={acc.account_id} className={`p-6 rounded-xl border ${idx === 0 ? 'bg-gradient-to-br from-blue-600 to-blue-800 text-white border-blue-600' : 'bg-white border-slate-200 text-slate-900'}`}>
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className={`text-sm font-medium ${idx === 0 ? 'text-blue-100' : 'text-slate-500'}`}>{acc.account_type.toUpperCase()}</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(acc.balance)}
-                  </p>
-                </div>
-                <CreditCard className={`w-6 h-6 ${idx === 0 ? 'text-blue-200' : 'text-slate-400'}`} />
-              </div>
-              <div className="flex justify-between items-end">
-                <p className={`font-mono text-sm ${idx === 0 ? 'text-blue-200' : 'text-slate-500'}`}>**** **** **** {acc.account_id.slice(-4)}</p>
-                <span className={`text-xs px-2 py-1 rounded ${idx === 0 ? 'bg-blue-500/50 text-white' : 'bg-slate-100 text-slate-600'}`}>Active</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quick Transfer */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative">
-          <div className="absolute -top-3 right-4">
-            <HintChip label="Logic Manipulation" onClick={() => setShowInfo(true)} />
           </div>
-          <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <ArrowRightLeft className="w-5 h-5 text-blue-500" />
-            Quick Transfer
-          </h2>
-          <form onSubmit={handleTransfer} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">From Account</label>
-              <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-                {accounts.map(acc => (
-                  <option key={acc.account_id} value={acc.account_id}>
-                    {acc.account_type} (...{acc.account_id.slice(-4)})
-                  </option>
-                ))}
-              </select>
+          <p className="text-slate-500">Corporate Banking & Treasury Management</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-bold border border-emerald-100 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            FDIC Insured
+          </div>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            Download Statements
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Accounts */}
+        <div className="lg:col-span-8 space-y-8">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-blue-500" />
+                Your Accounts
+              </h2>
+              <HintChip label="BOLA / IDOR" onClick={() => setShowInfo(true)} />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Amount ($)</label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            
+            <div className="divide-y divide-slate-100">
+              {accountsApi.loading && accounts.length === 0 ? (
+                <div className="p-12 text-center text-slate-400 italic">Accessing secure vault...</div>
+              ) : (
+                accounts.map((acc) => (
+                  <div key={acc.account_id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                        <DollarSign className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900">{acc.account_id}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{acc.account_type}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-slate-900">${(acc.balance ?? 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold">AVAILABLE</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                Market Overview
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'S&P 500', value: '+1.2%', color: 'text-emerald-600' },
+                  { label: 'Dow Jones', value: '+0.8%', color: 'text-emerald-600' },
+                  { label: 'NASDAQ', value: '-0.3%', color: 'text-rose-600' },
+                ].map((m, i) => (
+                  <div key={i} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">{m.label}</span>
+                    <span className={`font-bold ${m.color}`}>{m.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-slate-900 p-6 rounded-2xl text-white shadow-xl">
+              <h3 className="font-bold mb-4 flex items-center gap-2 text-blue-400">
+                <Shield className="w-4 h-4" />
+                Security Status
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">2FA Status</span>
+                  <span className="text-emerald-400 font-bold tracking-widest uppercase">Active</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Last Login</span>
+                  <span>Today, 09:42 AM</span>
+                </div>
+                <div className="w-full bg-slate-800 h-1 rounded-full mt-4 overflow-hidden">
+                  <div className="bg-blue-500 h-full w-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Actions */}
+        <div className="lg:col-span-4 space-y-8">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-blue-500" />
+                Quick Transfer
+              </h2>
+              <HintChip label="Logic Manipulation" onClick={() => setShowInfo(true)} />
+            </div>
+            <form onSubmit={handleTransfer} className="p-6 space-y-4">
+              <div>
+                <label htmlFor="transfer-to" className="block text-xs font-bold text-slate-500 uppercase mb-1">To Account</label>
                 <input 
-                  type="number" 
-                  step="0.01"
-                  className="w-full pl-9 p-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="0.00"
-                  value={transferAmount}
-                  onChange={e => setTransferAmount(e.target.value)}
+                  id="transfer-to"
+                  name="to"
+                  type="text" 
+                  placeholder="Account Number (e.g. ACC-002)" 
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  required
                 />
               </div>
-            </div>
-            <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-              <Send className="w-4 h-4" />
-              Transfer Funds
-            </button>
-            {transferStatus === 'success' && (
-              <p className="text-xs text-emerald-600 font-medium text-center">Transfer successful!</p>
-            )}
-            {transferStatus === 'error' && (
-              <p className="text-xs text-red-600 font-medium text-center">Transfer failed. Try again.</p>
-            )}
-          </form>
-        </div>
+              <div>
+                <label htmlFor="transfer-amount" className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount ($)</label>
+                <input 
+                  id="transfer-amount"
+                  name="amount"
+                  type="number" 
+                  placeholder="0.00" 
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  required
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={transferApi.loading}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {transferApi.loading ? 'Processing...' : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Complete Transfer
+                  </>
+                )}
+              </button>
+              
+              <div aria-live="polite" className="mt-2">
+                {transferStatus === 'success' && (
+                  <div role="status" className="p-3 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold text-center animate-in zoom-in-95 duration-300">
+                    Transfer successfully authorized!
+                  </div>
+                )}
+                {transferStatus === 'error' && (
+                  <div role="alert" className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-bold text-center animate-in zoom-in-95 duration-300">
+                    Transaction failed. Please contact your branch.
+                  </div>
+                )}
+              </div>
+            </form>
+          </div>
 
-        {/* Recent Transactions */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <h2 className="font-bold text-slate-900 flex items-center gap-2">
-              <History className="w-5 h-5 text-blue-500" />
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <History className="w-5 h-5 text-slate-400" />
               Recent Activity
             </h2>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View Statement</button>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {[1, 2, 3, 4, 5].map((_, i) => (
-              <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${i % 2 === 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
-                    {i % 2 === 0 ? <TrendingUp className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
-                  </div>
+            <div className="space-y-4">
+              {[
+                { label: 'Payment to shop.com', value: '-$124.50', date: 'Yesterday' },
+                { label: 'Direct Deposit', value: '+$3,200.00', date: '2 days ago' },
+                { label: 'ATM Withdrawal', value: '-$40.00', date: '3 days ago' },
+              ].map((act, i) => (
+                <div key={i} className="flex justify-between items-start border-b border-slate-50 pb-3 last:border-0">
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{i % 2 === 0 ? 'Payroll Deposit' : 'Merchant Payment'}</p>
-                    <p className="text-xs text-slate-500">Today, 10:2{i} AM</p>
+                    <p className="text-sm font-bold text-slate-800">{act.label}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">{act.date}</p>
                   </div>
+                  <span className="text-sm font-mono font-bold text-slate-900">{act.value}</span>
                 </div>
-                <span className={`font-mono font-medium ${i % 2 === 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                  {i % 2 === 0 ? '+' : '-'}${Math.floor(Math.random() * 500)}.00
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
+            <button className="w-full mt-4 py-2 text-xs font-bold text-blue-600 hover:underline">View Transaction History</button>
           </div>
         </div>
       </div>

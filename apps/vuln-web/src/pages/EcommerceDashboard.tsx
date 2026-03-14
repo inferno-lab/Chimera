@@ -8,56 +8,37 @@ import {
   Truck,
   Info
 } from 'lucide-react';
-import { VulnerabilityModal, VulnerabilityInfo } from '../components/VulnerabilityModal';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
 import { HintChip } from '../components/HintChip';
-
-const ecommerceInfo: VulnerabilityInfo = {
-  title: "E-commerce System Vulnerabilities",
-  description: "This portal demonstrates classic retail platform flaws, including reflected XSS in search results and SQL injection in the product catalog.",
-  swaggerTag: "Ecommerce",
-  vulns: [
-    {
-      name: "Reflected XSS (Search)",
-      description: "The search results page renders user input directly into the HTML without sanitization, allowing script injection.",
-      severity: "high",
-      endpoint: "GET /api/v1/ecommerce/products/search?query="
-    },
-    {
-      name: "SQL Injection (Catalog)",
-      description: "The product filtering and search logic uses unsanitized strings in database queries.",
-      severity: "critical",
-      endpoint: "GET /api/v1/ecommerce/products"
-    }
-  ]
-};
+import { useApi } from '../hooks/useApi';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const EcommerceDashboard: React.FC = () => {
+  const { loading, request } = useApi();
+  const { info: ecommerceInfo } = useVulnerabilityInfo('ecommerce');
   const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfo, setShowInfo] = useState(false);
 
   const fetchProducts = async (query = '') => {
-    setLoading(true);
     // Vulnerable search endpoint
-    const url = query 
+    const path = query 
       ? `/api/v1/ecommerce/products/search?query=${encodeURIComponent(query)}`
-      : '/api/v1/ecommerce/products';
+      : `/api/v1/ecommerce/products`;
 
     try {
-      const res = await fetch(url);
-      const data = await res.json();
-      setProducts(data.products || data.results || []);
-      setLoading(false);
+      const data = await request(path);
+      if (data) {
+        setProducts(data.products || data.results || []);
+      }
     } catch (err) {
       console.error(err);
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [request]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +47,13 @@ export const EcommerceDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <VulnerabilityModal isOpen={showInfo} onClose={() => setShowInfo(false)} info={ecommerceInfo} />
+      {ecommerceInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={ecommerceInfo} 
+        />
+      )}
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">

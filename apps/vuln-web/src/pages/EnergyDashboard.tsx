@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../lib/config';
 import React, { useState, useEffect } from 'react';
 import { 
   Zap, 
@@ -8,16 +9,22 @@ import {
   ShieldAlert,
   AlertCircle,
   Truck,
-  Database
+  Database,
+  Info
 } from 'lucide-react';
+import { VulnerabilityModal } from '../components/VulnerabilityModal';
+import { HintChip } from '../components/HintChip';
+import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const EnergyDashboard: React.FC = () => {
+  const { info: energyInfo } = useVulnerabilityInfo('energy_utilities');
   const [outages, setOutages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     // Generate some initial outage data
-    fetch('/api/v1/energy-utilities/outages/EXP-1')
+    fetch(`${API_BASE_URL}/api/v1/energy-utilities/outages/EXP-1`)
       .then(res => res.json())
       .then(data => {
         setOutages([data.outage]);
@@ -27,20 +34,37 @@ export const EnergyDashboard: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [API_BASE_URL]);
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {energyInfo && (
+        <VulnerabilityModal 
+          isOpen={showInfo} 
+          onClose={() => setShowInfo(false)} 
+          info={energyInfo} 
+        />
+      )}
+      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Zap className="w-8 h-8 text-yellow-500" />
-            GridMatrix Utilities
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <Zap className="w-8 h-8 text-yellow-500" />
+              GridMatrix Utilities
+            </h1>
+            <button 
+              onClick={() => setShowInfo(true)}
+              className="p-1.5 text-yellow-600 bg-yellow-50 rounded-full hover:bg-yellow-100 transition-colors"
+              aria-label="View Vulnerability Info"
+            >
+              <Info className="w-5 h-5" />
+            </button>
+          </div>
           <p className="text-slate-500">Infrastructure Operations & Outage Management</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <button id="energy-export-btn" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <Database className="w-4 h-4" />
             Export Grid Config
           </button>
@@ -98,6 +122,7 @@ export const EnergyDashboard: React.FC = () => {
               <h2 className="font-bold text-slate-900 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-orange-500" />
                 Regional Outage Tracker
+                <HintChip label="BOLA/IDOR" onClick={() => setShowInfo(true)} />
               </h2>
               <button className="text-sm font-bold text-blue-600 hover:text-blue-700">Dispatch Crew →</button>
             </div>
@@ -130,7 +155,10 @@ export const EnergyDashboard: React.FC = () => {
 
         {/* Sidebar */}
         <div className="space-y-8">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative">
+            <div className="absolute top-4 right-4">
+               <HintChip label="SSRF" onClick={() => setShowInfo(true)} />
+            </div>
             <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-yellow-500" />
               Smart Metering
