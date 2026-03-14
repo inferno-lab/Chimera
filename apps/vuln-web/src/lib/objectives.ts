@@ -9,6 +9,8 @@ export interface AttackLog {
   type: string;
   status: 'blocked' | 'allowed';
   source_ip: string;
+  origin_defense?: string;
+  confidence?: 'high' | 'low';
 }
 
 export interface Objective {
