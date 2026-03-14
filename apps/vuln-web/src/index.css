@@ -1,3 +1,188 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    font-family: 'Recursive', ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  .type-display {
+    @apply text-display;
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 300, 'MONO' 0, 'CASL' 0, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-heading {
+    @apply text-heading;
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 500, 'MONO' 0, 'CASL' 0.2, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-subhead {
+    @apply text-subhead tracking-[1.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 600, 'MONO' 0, 'CASL' 0.3, 'CRSV' 0.5, 'slnt' -3;
+  }
+
+  .type-body {
+    @apply text-body;
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 400, 'MONO' 0, 'CASL' 0.6, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-label {
+    @apply text-label tracking-[1px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 600, 'MONO' 1, 'CASL' 0.3, 'CRSV' 0.5, 'slnt' -4;
+  }
+
+  .type-tag {
+    @apply text-tag tracking-[1.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 800, 'MONO' 0, 'CASL' 0, 'CRSV' 0.5, 'slnt' -3;
+  }
+
+  .type-metric {
+    @apply text-metric tracking-[-0.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 400, 'MONO' 1, 'CASL' 0.6, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-metric-unit {
+    @apply text-metric-unit tracking-[0.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 500, 'MONO' 1, 'CASL' 0, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-data {
+    @apply text-data;
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 500, 'MONO' 1, 'CASL' 0, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-code {
+    @apply text-code tracking-[0.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 400, 'MONO' 1, 'CASL' 0, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-timestamp {
+    @apply text-timestamp tracking-[0.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 500, 'MONO' 1, 'CASL' 0, 'CRSV' 0.5, 'slnt' 0;
+  }
+
+  .type-nav {
+    @apply text-nav tracking-[1px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 500, 'MONO' 0.5, 'CASL' 0.2, 'CRSV' 0.5, 'slnt' -2;
+  }
+
+  .type-nav-active {
+    @apply text-nav-active tracking-[1px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 700, 'MONO' 0.5, 'CASL' 0.1, 'CRSV' 0.5, 'slnt' -2;
+  }
+
+  .type-link {
+    @apply text-link tracking-[1px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 700, 'MONO' 0, 'CASL' 0, 'CRSV' 0.5, 'slnt' -15;
+  }
+
+  .type-breadcrumb {
+    @apply text-breadcrumb tracking-[2.5px];
+    font-family: 'Recursive', ui-monospace, monospace;
+    font-variation-settings: 'wght' 700, 'MONO' 1, 'CASL' 0.2, 'CRSV' 0.5, 'slnt' -7;
+  }
+}
+
+@layer utilities {
+  :where(.dark .portal-theme) .bg-white {
+    background-color: rgb(15 23 42 / 0.72);
+  }
+
+  :where(.dark .portal-theme) .bg-slate-50 {
+    background-color: rgb(2 6 23 / 0.78);
+  }
+
+  :where(.dark .portal-theme) .bg-slate-50\/50 {
+    background-color: rgb(15 23 42 / 0.82);
+  }
+
+  :where(.dark .portal-theme) .bg-slate-100 {
+    background-color: rgb(30 41 59 / 0.9);
+  }
+
+  :where(.dark .portal-theme) .bg-blue-50 {
+    background-color: rgb(96 165 250 / 0.16);
+  }
+
+  :where(.dark .portal-theme) .bg-emerald-100 {
+    background-color: rgb(16 185 129 / 0.16);
+  }
+
+  :where(.dark .portal-theme) .border-slate-200 {
+    border-color: rgb(51 65 85);
+  }
+
+  :where(.dark .portal-theme) .border-slate-100 {
+    border-color: rgb(30 41 59);
+  }
+
+  :where(.dark .portal-theme) .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(30 41 59);
+  }
+
+  :where(.dark .portal-theme) .text-slate-900 {
+    color: rgb(248 250 252);
+  }
+
+  :where(.dark .portal-theme) .text-slate-800 {
+    color: rgb(241 245 249);
+  }
+
+  :where(.dark .portal-theme) .text-slate-700 {
+    color: rgb(226 232 240);
+  }
+
+  :where(.dark .portal-theme) .text-slate-600 {
+    color: rgb(203 213 225);
+  }
+
+  :where(.dark .portal-theme) .text-slate-500 {
+    color: rgb(148 163 184);
+  }
+
+  :where(.dark .portal-theme) .text-slate-400 {
+    color: rgb(100 116 139);
+  }
+
+  :where(.dark .portal-theme) .text-blue-700 {
+    color: rgb(219 234 254);
+  }
+
+  :where(.dark .portal-theme) .text-blue-600 {
+    color: rgb(147 197 253);
+  }
+
+  :where(.dark .portal-theme) .text-emerald-600 {
+    color: rgb(110 231 183);
+  }
+
+  :where(.dark .portal-theme) .hover\:bg-slate-50:hover {
+    background-color: rgb(30 41 59 / 0.72);
+  }
+
+  :where(.dark .portal-theme) .hover\:bg-blue-100:hover {
+    background-color: rgb(96 165 250 / 0.24);
+  }
+
+  :where(.dark .portal-theme) .hover\:text-blue-700:hover {
+    color: rgb(219 234 254);
+  }
+}
