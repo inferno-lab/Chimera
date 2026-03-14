@@ -9,7 +9,7 @@
 
 ## Build, Run, and Dev Workflow
 - `uv sync --extra dev --frozen`: Install Python 3.12 deps into `.venv` (preferred, matches Docker).
-- `uv run python app.py`: Launch locally in vulnerable mode; visit `http://localhost:5000`.
+- `PORT=8880 uv run python app.py`: Launch locally in vulnerable mode on port 8880.
 - `USE_DATABASE=true uv run python app.py`: Enable SQLite-backed SQLi scenarios.
 - `make run` / `make run-vulnerable`: Gunicorn with `DEMO_MODE=full` (intentionally unsafe).
 - `make run-secure`: Hardened mode (`DEMO_MODE=strict`) for control comparisons.

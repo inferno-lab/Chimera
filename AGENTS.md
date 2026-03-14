@@ -33,20 +33,20 @@ just run <proj> <tgt>   # Generic: just run vuln-api test
 
 ### Nx (underlying orchestrator)
 ```bash
-pnpm nx show projects               # List projects: vuln-api, vuln-web
+pnpm nx show projects               # List projects: chimera-api, vuln-web
 pnpm nx run vuln-web:build           # Build web app
-pnpm nx run vuln-api:test            # Run API tests
+pnpm nx run chimera-api:test         # Run API tests
 pnpm nx run-many -t test --parallel  # All tests in parallel
 pnpm nx affected -t test             # Test only changed projects
 ```
 
-### vuln-api (Python/Flask)
+### vuln-api (Python/Flask, Nx project: chimera-api)
 ```bash
 # Dependencies (uses uv, not pip)
 cd apps/vuln-api && uv sync --extra dev --frozen
 
 # Run locally
-uv run python app.py                           # Default (port 5000)
+PORT=8880 uv run python app.py                 # Local app.py entrypoint on port 8880
 DEMO_MODE=full uv run python app.py            # Vulnerable mode
 USE_DATABASE=true uv run python app.py         # SQLite for real SQLi
 
@@ -67,7 +67,7 @@ make -C apps/vuln-api lint             # flake8 + pylint
 
 ### vuln-web (React/Vite/TypeScript)
 ```bash
-just web-dev            # Dev server (port 5175, proxies /api → localhost:5000)
+just web-dev            # Dev server (port 5175, proxies /api → localhost:8880)
 just web-build          # Production build (tsc -b && vite build)
 just web-lint           # ESLint
 ```
@@ -99,7 +99,7 @@ just web-lint           # ESLint
 
 **React 18 SPA** with React Router v6. Each industry vertical is a page component in `src/pages/` that fetches from `/api/v1/{domain}/...` endpoints.
 
-**Vite dev server** proxies `/api` → `http://localhost:5000` (configured in `vite.config.ts`).
+**Vite dev server** proxies `/api` → `http://localhost:8880` (configured in `vite.config.ts`).
 
 **Notable components**:
 - `ThemeProvider` — dark/light mode via React context + localStorage
@@ -110,7 +110,7 @@ just web-lint           # ESLint
 
 ### Frontend ↔ Backend
 
-The web app makes `fetch()` calls to `/api/v1/...` endpoints. In development, Vite proxies these to the Flask backend on port 5000. In production (Docker), nginx handles the proxy.
+The web app makes `fetch()` calls to `/api/v1/...` endpoints. In development, Vite proxies these to the Flask backend on port 8880. In production (Docker), nginx handles the proxy.
 
 ## Testing Conventions
 
@@ -155,4 +155,3 @@ These guides cover:
 - MCP tools reference
 
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
-
