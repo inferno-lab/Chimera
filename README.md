@@ -63,9 +63,34 @@ just dev
 
 The Vite dev server proxies `/api` requests to the Flask backend automatically.
 
+### Local Development With Apparatus
+
+Chimera's Apparatus integration is a service-to-service connection, not a monorepo/workspace dependency. Run Apparatus separately, then point Chimera's backend at it with environment variables.
+
+```bash
+# Terminal 1: start Chimera
+APPARATUS_ENABLED=true \
+APPARATUS_BASE_URL=http://127.0.0.1:8090 \
+APPARATUS_TIMEOUT_MS=5000 \
+just dev
+
+# Terminal 2: start Apparatus from its own repo
+cd ../Apparatus
+tx run apparatus
+```
+
+Once both services are running:
+
+- Open the Chimera Admin Dashboard at [http://localhost:5175/admin](http://localhost:5175/admin) to use the Apparatus panel.
+- Check backend status at [http://localhost:8880/api/v1/integrations/apparatus/status](http://localhost:8880/api/v1/integrations/apparatus/status).
+- Start and stop ghost traffic through `POST /api/v1/integrations/apparatus/ghosts/start` and `POST /api/v1/integrations/apparatus/ghosts/stop`.
+- Inspect recent Apparatus activity with `GET /api/v1/integrations/apparatus/history?limit=5`.
+
 ## Architecture
 
 Chimera is a **pnpm + Nx monorepo** with two main applications that can run independently in development or be bundled together for production distribution.
+
+The new Apparatus integration keeps that boundary intact: Chimera web talks to Chimera API, and Chimera API talks to an external Apparatus service over HTTP. You do not need to add Apparatus to this monorepo to use the integration.
 
 ```
 Chimera/
@@ -158,8 +183,11 @@ See the full [Vulnerability Inventory](docs/vulnerability-inventory.md) for deta
 | `DEMO_MODE` | `strict` | `full` enables all vulnerabilities; `strict` blocks dangerous endpoints |
 | `USE_DATABASE` | `false` | Enable SQLite backend for real SQL injection testing |
 | `DATABASE_PATH` | `demo.db` | SQLite file location (when `USE_DATABASE=true`) |
-| `PORT` | `80` (container) / `5000` (dev) | Server listening port |
+| `PORT` | `80` (container) / `8880` (dev) | Server listening port |
 | `DEMO_THROUGHPUT_MODE` | `false` | Enable high-throughput testing endpoints |
+| `APPARATUS_ENABLED` | `false` | Enable the Apparatus service-to-service integration routes and Admin panel |
+| `APPARATUS_BASE_URL` | `http://127.0.0.1:8090` | Base URL for the external Apparatus service |
+| `APPARATUS_TIMEOUT_MS` | `5000` | Timeout for Chimera-to-Apparatus HTTP requests in milliseconds |
 
 ### CLI Options
 

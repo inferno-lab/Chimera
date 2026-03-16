@@ -51,7 +51,7 @@ just dev
 ```
 
 This starts both servers in parallel via Nx:
-- **Flask API** on `http://localhost:5000`
+- **Flask API** on `http://localhost:8880`
 - **Vite dev server** on `http://localhost:5175` (proxies `/api/*` to Flask)
 
 ### Start Individually
@@ -63,6 +63,37 @@ just api-start
 # Web only
 just web-dev
 ```
+
+### Run With Apparatus
+
+The Apparatus integration is service-to-service: Chimera backend proxies to an external Apparatus instance, and the React app talks only to Chimera. Keep Apparatus in its own repo or deployment and point Chimera at it with environment variables.
+
+```bash
+# Chimera terminal
+APPARATUS_ENABLED=true \
+APPARATUS_BASE_URL=http://127.0.0.1:8090 \
+APPARATUS_TIMEOUT_MS=5000 \
+just dev
+
+# Apparatus terminal
+cd ../Apparatus
+tx run apparatus
+```
+
+Smoke-check the integration with:
+
+```bash
+curl http://localhost:8880/api/v1/integrations/apparatus/status
+curl http://localhost:8880/api/v1/integrations/apparatus/history?limit=5
+curl -X POST http://localhost:8880/api/v1/integrations/apparatus/ghosts/start \
+  -H 'Content-Type: application/json' \
+  -d '{"rps":5,"duration":30000,"endpoints":["/api/v1/auth/login"]}'
+curl -X POST http://localhost:8880/api/v1/integrations/apparatus/ghosts/stop
+```
+
+The Chimera web Admin Dashboard also exposes these controls through the Apparatus panel once both services are running.
+
+Planning note: the initial rollout checklist for this integration lives at `backlog/docs/backlog.md/doc-2 - Apparatus-Integration-Checklist.md`.
 
 ### Demo Modes
 
@@ -332,6 +363,7 @@ docs(readme): update quick start instructions
 | `just lint` | Lint all projects |
 | `just bundle` | Build wheel with bundled web |
 | `just api-test-unit` | Run API unit tests directly |
+| `APPARATUS_ENABLED=true APPARATUS_BASE_URL=http://127.0.0.1:8090 APPARATUS_TIMEOUT_MS=5000 just dev` | Start Chimera with the external Apparatus integration enabled |
 | `just web-build` | Build web app |
 | `just graph` | Show Nx dependency graph |
 | `just affected test` | Test only changed projects |
