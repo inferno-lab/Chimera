@@ -1,8 +1,84 @@
-# Developer Guide
+# Getting Started
 
-Setup, development workflow, testing, and contributing conventions for the Chimera project.
+This guide covers installing, running, and developing the Chimera project. Choose the method that fits your needs -- PyPI and Docker are the fastest paths; source installs give you the full development environment.
 
-## Prerequisites
+## Option A: Install from PyPI (recommended)
+
+Requires **Python 3.12+**.
+
+```bash
+pip install chimera-api
+chimera-api --port 8880 --demo-mode full
+```
+
+Open [http://localhost:8880](http://localhost:8880) for the web portal, or [http://localhost:8880/swagger](http://localhost:8880/swagger) for the interactive API docs.
+
+### CLI Options
+
+```bash
+chimera-api --help
+
+chimera-api \
+  --host 0.0.0.0 \
+  --port 8880 \
+  --demo-mode full \
+  --debug
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--host` | `0.0.0.0` | Bind address |
+| `--port` | `8880` | Server port |
+| `--debug` | off | Enable Flask debug mode |
+| `--demo-mode` | none | `full` or `strict` |
+
+### Configuration
+
+Customize the runtime with environment variables:
+
+```bash
+DEMO_MODE=full \
+USE_DATABASE=true \
+chimera-api --port 8880
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMO_MODE` | `strict` | `full` enables all vulnerabilities; `strict` blocks dangerous endpoints |
+| `USE_DATABASE` | `false` | Enable SQLite backend for real SQL injection testing |
+| `DATABASE_PATH` | `demo.db` | SQLite file location (when `USE_DATABASE=true`) |
+| `PORT` | `80` (container) / `8880` (dev) | Server listening port |
+| `DEMO_THROUGHPUT_MODE` | `false` | Enable high-throughput testing endpoints |
+| `APPARATUS_ENABLED` | `false` | Enable the Apparatus service-to-service integration |
+| `APPARATUS_BASE_URL` | `http://127.0.0.1:8090` | Base URL for the external Apparatus service |
+| `APPARATUS_TIMEOUT_MS` | `5000` | Timeout for Chimera-to-Apparatus HTTP requests (ms) |
+
+---
+
+## Option B: Run with Docker
+
+```bash
+docker run -p 8880:8880 -e DEMO_MODE=full nickcrew/chimera
+```
+
+Open [http://localhost:8880](http://localhost:8880). Same bundled server as the PyPI package.
+
+Pass environment variables with `-e`:
+
+```bash
+docker run -p 8880:8880 \
+  -e DEMO_MODE=full \
+  -e USE_DATABASE=true \
+  nickcrew/chimera
+```
+
+---
+
+## Option C: Run from Source
+
+Use this option when you want to develop Chimera itself or need fine-grained control over individual components.
+
+### Prerequisites
 
 Before you begin, install:
 
@@ -21,11 +97,11 @@ uv --version      # 0.4+
 just --version    # 1.0+ (optional)
 ```
 
-## Initial Setup
+### 1. Clone and install
 
 ```bash
-# Clone the repo
-git clone <repo-url> && cd chimera
+git clone https://github.com/NickCrew/Chimera.git
+cd Chimera
 
 # Install Node.js dependencies (pnpm workspace)
 pnpm install
@@ -42,9 +118,7 @@ just projects
 # Should output: chimera-api, vuln-web
 ```
 
-## Development Workflow
-
-### Start Everything
+### 2. Start the dev servers
 
 ```bash
 just dev
@@ -54,7 +128,7 @@ This starts both servers in parallel via Nx:
 - **Flask API** on `http://localhost:8880`
 - **Vite dev server** on `http://localhost:5175` (proxies `/api/*` to Flask)
 
-### Start Individually
+Start individually:
 
 ```bash
 # API only
@@ -64,7 +138,22 @@ just api-start
 just web-dev
 ```
 
-### Run With Apparatus
+### 3. Demo modes
+
+Control vulnerability behavior with `DEMO_MODE`:
+
+```bash
+# All vulnerabilities active
+DEMO_MODE=full uv run python app.py
+
+# Dangerous endpoints blocked
+DEMO_MODE=strict uv run python app.py
+
+# Real SQL injection via SQLite
+USE_DATABASE=true DEMO_MODE=full uv run python app.py
+```
+
+### Apparatus Integration (optional)
 
 The Apparatus integration is service-to-service: Chimera backend proxies to an external Apparatus instance, and the React app talks only to Chimera. Keep Apparatus in its own repo or deployment and point Chimera at it with environment variables.
 
@@ -92,38 +181,6 @@ curl -X POST http://localhost:8880/api/v1/integrations/apparatus/ghosts/stop
 ```
 
 The Chimera web Admin Dashboard also exposes these controls through the Apparatus panel once both services are running.
-
-Planning note: the initial rollout checklist for this integration lives at `backlog/docs/backlog.md/doc-2 - Apparatus-Integration-Checklist.md`.
-
-### Demo Modes
-
-Control vulnerability behavior with `DEMO_MODE`:
-
-```bash
-# All vulnerabilities active
-DEMO_MODE=full uv run python app.py
-
-# Dangerous endpoints blocked
-DEMO_MODE=strict uv run python app.py
-
-# Real SQL injection via SQLite
-USE_DATABASE=true DEMO_MODE=full uv run python app.py
-```
-
-### Using the CLI
-
-After installing the package (`pip install -e .` or from a wheel):
-
-```bash
-chimera-api --port 8880 --demo-mode full --debug
-```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--host` | `0.0.0.0` | Bind address |
-| `--port` | `8880` | Server port |
-| `--debug` | off | Enable Flask debug mode |
-| `--demo-mode` | none | `full` or `strict` |
 
 ## Project Structure
 

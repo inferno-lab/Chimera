@@ -24,9 +24,9 @@ An intentionally vulnerable monorepo for WAF testing and security education. Chi
 - **Load testing & scanning** — includes k6 scenarios and Nuclei templates out of the box
 - **Observability stack** — pre-built Grafana dashboards and Loki log shipping configuration
 
-## Quick Start
+## Installation
 
-### Install from PyPI
+### PyPI (recommended)
 
 ```bash
 pip install chimera-api
@@ -38,15 +38,49 @@ Open [http://localhost:8880](http://localhost:8880) for the web portal, or [http
 ### Docker
 
 ```bash
-docker build -t chimera-api apps/vuln-api
-docker run -p 8880:80 -e DEMO_MODE=full chimera-api
+docker run -p 8880:8880 -e DEMO_MODE=full nickcrew/chimera
 ```
 
-### Local Development
+### Environment Variables
 
-Prerequisites: **Node.js 18+**, **pnpm**, **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)**, **[just](https://just.systems/)**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMO_MODE` | `strict` | `full` enables all vulnerabilities; `strict` blocks dangerous endpoints |
+| `USE_DATABASE` | `false` | Enable SQLite backend for real SQL injection testing |
+| `DATABASE_PATH` | `demo.db` | SQLite file location (when `USE_DATABASE=true`) |
+| `PORT` | `80` (container) / `8880` (dev) | Server listening port |
+| `DEMO_THROUGHPUT_MODE` | `false` | Enable high-throughput testing endpoints |
+| `APPARATUS_ENABLED` | `false` | Enable the Apparatus service-to-service integration |
+| `APPARATUS_BASE_URL` | `http://127.0.0.1:8090` | Base URL for the external Apparatus service |
+| `APPARATUS_TIMEOUT_MS` | `5000` | Timeout for Chimera-to-Apparatus HTTP requests (ms) |
+
+### CLI Options
 
 ```bash
+chimera-api --help
+
+chimera-api \
+  --host 0.0.0.0 \
+  --port 8880 \
+  --demo-mode full \
+  --debug
+```
+
+## Development
+
+### Prerequisites
+
+- **Node.js** 18+ and **pnpm**
+- **Python** 3.12+
+- **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
+- **[just](https://just.systems/)** — task runner
+
+### Run from source
+
+```bash
+git clone https://github.com/NickCrew/Chimera.git
+cd Chimera
+
 # Install workspace dependencies
 pnpm install
 cd apps/vuln-api && uv sync --extra dev && cd ../..
@@ -63,7 +97,7 @@ just dev
 
 The Vite dev server proxies `/api` requests to the Flask backend automatically.
 
-### Local Development With Apparatus
+### Apparatus Integration (optional)
 
 Chimera's Apparatus integration is a service-to-service connection, not a monorepo/workspace dependency. Run Apparatus separately, then point Chimera's backend at it with environment variables.
 
@@ -166,40 +200,6 @@ Chimera covers **100% of the OWASP Top 10** with 200+ intentional vulnerabilitie
 | **Cryptographic Failures** | Weak hashing, predictable tokens, insecure key storage |
 
 See the full [Vulnerability Inventory](docs/vulnerability-inventory.md) for detailed descriptions and exploit examples.
-
-## Configuration
-
-### Demo Modes
-
-| Mode | Value | Behavior |
-|------|-------|----------|
-| **Full** | `DEMO_MODE=full` | All vulnerabilities active — use for WAF testing |
-| **Strict** | `DEMO_MODE=strict` | Dangerous endpoints return `403` — safe for demos |
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEMO_MODE` | `strict` | `full` enables all vulnerabilities; `strict` blocks dangerous endpoints |
-| `USE_DATABASE` | `false` | Enable SQLite backend for real SQL injection testing |
-| `DATABASE_PATH` | `demo.db` | SQLite file location (when `USE_DATABASE=true`) |
-| `PORT` | `80` (container) / `8880` (dev) | Server listening port |
-| `DEMO_THROUGHPUT_MODE` | `false` | Enable high-throughput testing endpoints |
-| `APPARATUS_ENABLED` | `false` | Enable the Apparatus service-to-service integration routes and Admin panel |
-| `APPARATUS_BASE_URL` | `http://127.0.0.1:8090` | Base URL for the external Apparatus service |
-| `APPARATUS_TIMEOUT_MS` | `5000` | Timeout for Chimera-to-Apparatus HTTP requests in milliseconds |
-
-### CLI Options
-
-```bash
-chimera-api --help
-
-chimera-api \
-  --host 0.0.0.0 \
-  --port 8880 \
-  --demo-mode full \
-  --debug
-```
 
 ## Commands
 
