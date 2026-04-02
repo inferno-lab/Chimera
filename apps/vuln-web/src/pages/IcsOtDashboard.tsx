@@ -4,10 +4,9 @@ import {
   Cpu, 
   Activity, 
   Terminal, 
-  ShieldAlert, 
+  ShieldAlert,
   Box,
   Binary,
-  AlertTriangle,
   Lock,
   Info
 } from 'lucide-react';

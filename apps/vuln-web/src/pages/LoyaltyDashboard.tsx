@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Trophy, 
-  Star, 
-  Gift, 
-  ArrowRightLeft, 
-  TrendingUp, 
+  Trophy,
+  Star,
+  ArrowRightLeft,
   Clock,
   QrCode,
   Tag,
-  Info,
-  CreditCard
+  Info
 } from 'lucide-react';
 import { VulnerabilityModal } from '../components/VulnerabilityModal';
 import { HintChip } from '../components/HintChip';
@@ -17,7 +14,7 @@ import { useApi } from '../hooks/useApi';
 import { useVulnerabilityInfo } from '../hooks/useVulnerabilityInfo';
 
 export const LoyaltyDashboard: React.FC = () => {
-  const { loading, request } = useApi();
+  const { request } = useApi();
   const { info: loyaltyInfo } = useVulnerabilityInfo('loyalty');
   const [transferAmount, setTransferAmount] = useState('');
   const [showInfo, setShowInfo] = useState(false);
