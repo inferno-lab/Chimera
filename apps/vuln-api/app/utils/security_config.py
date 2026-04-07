@@ -30,7 +30,9 @@ class SecurityConfig:
 
     def _load(self):
         if not os.path.exists(CONFIG_PATH):
-            self.update(self._get_defaults())
+            for key, value in self._get_defaults().items():
+                setattr(self, key, value)
+            self._save()
             return
 
         try:

@@ -226,6 +226,7 @@ export const RequestInspectorProvider: React.FC<{ children: React.ReactNode }> =
       }
     };
 
+    (patchedFetch as any).__chimera_patched = true;
     window.fetch = patchedFetch;
 
     return () => {
