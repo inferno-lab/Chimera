@@ -151,3 +151,63 @@ def get_account_details(account_id, is_secure=False):
         response['vulnerability_type'] = 'BOLA'
 
     return jsonify(response)
+
+
+# ============================================================================
+# WIRE TRANSFER ENDPOINT
+# ============================================================================
+
+@banking_bp.route('/api/v1/banking/wire-transfer', methods=['POST'])
+def create_wire_transfer():
+    """
+    Process wire transfer without AML checks.
+    VULNERABILITY: Accepts bypass_aml flag without authorization.
+    """
+    data = request.get_json() or {}
+    wire = {
+        'wire_id': f'WIRE-{uuid.uuid4().hex[:8].upper()}',
+        'amount': data.get('amount', 0),
+        'beneficiary': data.get('beneficiary', 'Unknown'),
+        'bypass_aml': data.get('bypass_aml', False),
+        'status': 'completed',
+        'timestamp': datetime.now().isoformat(),
+    }
+    return jsonify({'wire': wire}), 201
+
+
+# ============================================================================
+# BENEFICIARY ENDPOINT
+# ============================================================================
+
+@banking_bp.route('/api/v1/banking/beneficiaries/<beneficiary_id>', methods=['GET'])
+def get_beneficiary(beneficiary_id):
+    """
+    Get beneficiary details without ownership verification.
+    VULNERABILITY: IDOR — any user can access any beneficiary record.
+    """
+    beneficiary = {
+        'beneficiary_id': beneficiary_id,
+        'name': 'Jane Doe',
+        'account_number': '****7890',
+        'bank': 'Example Bank',
+        'user_id': 'user-victim',
+    }
+    return jsonify({'beneficiary': beneficiary})
+
+
+# ============================================================================
+# KYC DOCUMENTS EXPORT ENDPOINT
+# ============================================================================
+
+@banking_bp.route('/api/v1/banking/kyc/documents/export', methods=['GET'])
+def export_kyc_documents():
+    """
+    Export KYC documents without admin verification.
+    VULNERABILITY: Broken access control — no role check, PII exposed.
+    """
+    include_pii = request.args.get('include_pii', 'false').lower() == 'true'
+    documents = [
+        {'doc_id': 'KYC-001', 'user_id': 'user-001', 'type': 'passport', 'status': 'verified'},
+        {'doc_id': 'KYC-002', 'user_id': 'user-002', 'type': 'drivers_license', 'status': 'pending'},
+    ]
+    return jsonify({'documents': documents, 'include_pii': include_pii})
