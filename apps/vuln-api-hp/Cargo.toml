@@ -3,7 +3,17 @@ name = "chimera-api-hp"
 version = "0.1.0"
 edition = "2021"
 description = "High-performance echo server for WAF throughput testing"
+authors = ["Nicholas Crew Ferguson"]
+repository = "https://github.com/atlas-crew/Chimera"
+homepage = "https://chimera.atlascrew.dev"
+documentation = "https://chimera.atlascrew.dev"
+readme = "README.md"
+keywords = ["security", "performance-testing", "vulnerable-app", "echo-server", "load-testing"]
+categories = ["development-tools::testing", "web-programming::http-server"]
 license = "MIT"
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 axum = "0.8"
