@@ -15,6 +15,7 @@ from flask import request, jsonify, abort
 from werkzeug.exceptions import HTTPException
 
 from . import testing_bp
+from app.config import app_config
 
 
 @testing_bp.route('/error/<error_type>', methods=['GET', 'POST'])
@@ -249,26 +250,34 @@ def error_chain(depth: int) -> Dict[str, Any]:
 @testing_bp.route('/leak/config', methods=['GET'])
 def leak_config() -> Dict[str, Any]:
     """
-    Intentionally leak Flask application configuration.
+    Intentionally leak application configuration.
 
     WARNING: INTENTIONALLY INSECURE FOR DEMO PURPOSES.
 
     Returns:
         JSON response with application configuration
     """
-    from flask import current_app
-
     # Leak all configuration (INTENTIONALLY INSECURE)
-    config_dict = {key: repr(value) for key, value in current_app.config.items()}
+    config_dict = {key: repr(value) for key, value in app_config.items()}
+
+    # Attempt to read framework-specific internals (Flask or Starlette)
+    blueprints: list = []
+    url_rules: list = []
+    try:
+        from flask import current_app as _ca
+        blueprints = list(_ca.blueprints.keys())
+        url_rules = [str(rule) for rule in _ca.url_map.iter_rules()]
+    except (ImportError, RuntimeError):
+        pass
 
     return jsonify({
         "demo_warning": "THIS IS A DEMO - Intentionally leaking configuration",
         "config": config_dict,
-        "secret_key": current_app.secret_key,
-        "debug": current_app.debug,
-        "testing": current_app.testing,
-        "blueprints": list(current_app.blueprints.keys()),
-        "url_map": [str(rule) for rule in current_app.url_map.iter_rules()],
+        "secret_key": app_config.secret_key,
+        "debug": app_config.debug,
+        "testing": app_config.testing,
+        "blueprints": blueprints,
+        "url_map": url_rules,
     }), 200
 
 

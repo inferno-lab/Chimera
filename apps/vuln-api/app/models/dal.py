@@ -8,7 +8,7 @@ In production, this would be replaced with proper database models and ORM.
 """
 
 from datetime import datetime
-from gevent.lock import BoundedSemaphore as Lock
+from threading import Lock
 from typing import Any, Dict, List, Optional, Callable
 import copy
 import uuid

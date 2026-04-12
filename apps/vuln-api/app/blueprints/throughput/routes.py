@@ -2,9 +2,10 @@
 Fast-path endpoints for throughput testing.
 """
 
-from flask import Response, jsonify, request, current_app
+from flask import Response, jsonify, request
 
 from . import throughput_bp
+from app.config import app_config
 from app.throughput import build_throughput_payload
 
 _SIZE_LABELS = {
@@ -27,27 +28,29 @@ def _parse_int(value: str):
         return None
 
 
+_throughput_payload_cache: dict = {}
+
+
 @throughput_bp.route('/fast/ping')
 def fast_ping():
-    if not current_app.config.get('DEMO_THROUGHPUT_MODE', False):
+    if not app_config.throughput_mode:
         return _disabled()
 
     return jsonify({
         'status': 'ok',
         'mode': 'throughput',
-        'payload_bytes': current_app.config.get('DEMO_THROUGHPUT_PAYLOAD_BYTES', 0),
-        'max_bytes': current_app.config.get('DEMO_THROUGHPUT_MAX_BYTES', 0)
+        'payload_bytes': app_config.throughput_payload_bytes,
+        'max_bytes': app_config.throughput_max_bytes
     })
 
 
 @throughput_bp.route('/fast/export')
 def fast_export():
-    if not current_app.config.get('DEMO_THROUGHPUT_MODE', False):
+    if not app_config.throughput_mode:
         return _disabled()
 
-    cache = current_app.config.get('DEMO_THROUGHPUT_PAYLOAD_CACHE', {})
-    default_bytes = current_app.config.get('DEMO_THROUGHPUT_PAYLOAD_BYTES', 2 * 1024)
-    max_bytes = current_app.config.get('DEMO_THROUGHPUT_MAX_BYTES', 1024 * 1024)
+    default_bytes = app_config.throughput_payload_bytes
+    max_bytes = app_config.throughput_max_bytes
 
     target_bytes = default_bytes
     size = request.args.get('size', '').lower()
@@ -64,10 +67,10 @@ def fast_export():
     if max_bytes and target_bytes > max_bytes:
         target_bytes = max_bytes
 
-    payload = cache.get(target_bytes)
+    payload = _throughput_payload_cache.get(target_bytes)
     if payload is None:
         payload = build_throughput_payload(target_bytes)
-        cache[target_bytes] = payload
+        _throughput_payload_cache[target_bytes] = payload
 
     response = Response(payload, mimetype='application/json')
     response.headers['X-Demo-Throughput'] = 'true'

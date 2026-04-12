@@ -1,6 +1,7 @@
+import json as _json
 import logging
 from functools import wraps
-from flask import make_response, request, current_app
+from flask import make_response, request
 from app.utils.security_config import security_config
 from app.utils.vuln_registry import VULN_REGISTRY
 
@@ -81,12 +82,11 @@ def hotpatch(vuln_type, vuln_id=None):
                             "endpoint": meta['endpoint']
                         }
                         
-                        # P1-002 Fix (Review 8): Use current_app.json.dumps and update Content-Length
-                        new_body = current_app.json.dumps(data)
+                        new_body = _json.dumps(data)
                         response.set_data(new_body)
                         response.headers['Content-Length'] = len(response.get_data())
                 except (ValueError, KeyError, TypeError) as e:
-                    current_app.logger.warning(f"Error injecting Chimera education metadata: {e}")
+                    logger.warning(f"Error injecting Chimera education metadata: {e}")
 
             return response
         return decorated_function

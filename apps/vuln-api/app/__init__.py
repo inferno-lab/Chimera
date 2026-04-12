@@ -5,6 +5,7 @@ Application factory for the  WAF Demo Site.
 import os
 from flask import Flask, Response, jsonify, request, send_from_directory
 
+from app.config import init_config
 from app.throughput import (
     bool_env,
     int_env,
@@ -23,10 +24,13 @@ def create_app(config=None):
     Returns:
         Configured Flask application instance
     """
+    # Initialize framework-agnostic config before anything else
+    app_config = init_config(config)
+
     app = Flask(__name__, static_folder='../static')
 
     # Basic configuration
-    app.secret_key = config.get('SECRET_KEY', 'chimera-demo-key-not-for-production') if config else 'chimera-demo-key-not-for-production'
+    app.secret_key = app_config.secret_key
 
     # Initialize Swagger (legacy flasgger setup retained for backward compatibility)
     from flasgger import Swagger

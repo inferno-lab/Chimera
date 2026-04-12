@@ -3,7 +3,7 @@ Shared in-memory data stores for demo purposes.
 In production, these would be replaced with proper database models.
 """
 
-from gevent.lock import BoundedSemaphore as Lock
+from threading import Lock
 
 # User and authentication stores
 users_db = {}

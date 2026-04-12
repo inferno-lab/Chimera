@@ -8,7 +8,10 @@ structures for success, error, and data payloads.
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 from flask import jsonify, Response
-from werkzeug.http import HTTP_STATUS_CODES
+from http import HTTPStatus
+
+# Framework-agnostic status text lookup (replaces werkzeug.http.HTTP_STATUS_CODES)
+HTTP_STATUS_CODES = {s.value: s.phrase for s in HTTPStatus}
 
 
 def success_response(

@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 import requests
-from flask import current_app
+
+from app.config import app_config
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,15 @@ class ApparatusServiceUpstreamError(ApparatusServiceError):
 def build_apparatus_settings(config: Mapping[str, Any] | None = None) -> ApparatusSettings:
     """Create normalized Apparatus settings from app config or a mapping."""
 
-    source = config if config is not None else current_app.config
+    if config is not None:
+        source = config
+    else:
+        # Try Flask context first (for tests), fall back to framework-agnostic config
+        try:
+            from flask import current_app
+            source = current_app.config
+        except (ImportError, RuntimeError):
+            source = app_config
     base_url = str(source.get('APPARATUS_BASE_URL', '') or '').strip()
     timeout_ms = source.get('APPARATUS_TIMEOUT_MS', 5000)
 

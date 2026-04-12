@@ -2,14 +2,17 @@
 Routes for integrations endpoints.
 """
 
-from flask import request, jsonify, current_app
+from flask import request, jsonify
 from datetime import datetime, timedelta
 import uuid
 import random
 import json
 import time
 
+import logging
+
 from . import integrations_bp
+from app.config import app_config
 from app.models import *
 from app.services import (
     ApparatusService,
@@ -43,7 +46,7 @@ def _apparatus_error_response(exc):
         return jsonify(exc.to_dict()), 502
     if isinstance(exc, ApparatusServiceUpstreamError):
         return jsonify(exc.to_dict()), 502
-    current_app.logger.exception('Unexpected Apparatus integration error', exc_info=exc)
+    logging.getLogger('chimera').exception('Unexpected Apparatus integration error', exc_info=exc)
     return jsonify({
         'error': 'apparatus_error',
         'message': 'An internal error occurred while processing the Apparatus integration request.',
@@ -51,7 +54,7 @@ def _apparatus_error_response(exc):
 
 
 def _get_apparatus_service():
-    return ApparatusService(build_apparatus_settings(current_app.config))
+    return ApparatusService(build_apparatus_settings())
 
 
 @integrations_bp.route('/api/v1/integrations/ws/simulate-frame', methods=['POST'])
@@ -78,7 +81,7 @@ def ws_simulate_frame():
 @integrations_bp.route('/api/v1/integrations/apparatus/status')
 def integrations_apparatus_status():
     """Surface Apparatus connectivity and ghost status for Chimera UI clients."""
-    settings = build_apparatus_settings(current_app.config)
+    settings = build_apparatus_settings()
 
     if not settings.enabled:
         return jsonify(_apparatus_status_fallback(

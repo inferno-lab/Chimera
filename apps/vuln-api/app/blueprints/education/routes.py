@@ -1,5 +1,6 @@
-from flask import jsonify, request, session, current_app
+from flask import jsonify, request, session
 from . import education_bp
+from app.config import app_config
 from app.utils.vuln_registry import VULN_REGISTRY
 from app.utils.security_config import security_config
 
@@ -17,7 +18,7 @@ def check_access():
     """
     # P0-001 Fix (Review 9): Only allow local bypass in debug mode using trusted remote_addr.
     # access_route is client-controlled (spoofable) and thus not trusted for security gates.
-    is_local = current_app.debug and request.remote_addr == '127.0.0.1'
+    is_local = app_config.debug and request.remote_addr == '127.0.0.1'
     has_session = bool(session.get('user_id'))
     
     if not is_local and not has_session:

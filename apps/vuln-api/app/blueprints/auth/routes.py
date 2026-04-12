@@ -4,13 +4,15 @@ WARNING: This code contains intentional vulnerabilities for WAF testing purposes
 DO NOT use in production environments.
 """
 
-from flask import request, jsonify, render_template_string, session, current_app
+from flask import request, jsonify, render_template_string, session
 from datetime import datetime, timedelta
 import uuid
 import random
 import json
 import time
 import hashlib
+
+from app.config import app_config
 import hmac
 import base64
 import os
@@ -61,7 +63,7 @@ def generate_jwt(user_id, username, expires_in=3600):
             return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
     # Normal JWT signing
-    secret = current_app.secret_key
+    secret = app_config.secret_key
     return pyjwt.encode(payload, secret, algorithm='HS256')
 
 def verify_jwt(token):
@@ -72,7 +74,7 @@ def verify_jwt(token):
             payload = json.loads(base64.urlsafe_b64decode(token))
             return payload
 
-        secret = current_app.secret_key
+        secret = app_config.secret_key
         payload = pyjwt.decode(token, secret, algorithms=['HS256'])
         return payload
     except Exception as e:
