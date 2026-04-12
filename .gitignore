@@ -191,7 +191,6 @@ apps/vuln-api/app/web_dist/*
 
 # Agents
 **/reviews/
-backlog/
 
 # Jekyll
 docs/_site/

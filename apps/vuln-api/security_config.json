@@ -1,0 +1,8 @@
+{
+  "sqli_protection": false,
+  "csrf_protection": false,
+  "ssrf_protection": false,
+  "xss_protection": false,
+  "bola_protection": false,
+  "debug_mode": true
+}
