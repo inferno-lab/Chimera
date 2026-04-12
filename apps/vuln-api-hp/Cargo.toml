@@ -1,6 +1,6 @@
 [package]
 name = "chimera-api-hp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "High-performance echo server for WAF throughput testing"
 authors = ["Nicholas Crew Ferguson"]
