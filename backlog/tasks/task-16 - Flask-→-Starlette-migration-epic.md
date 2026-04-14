@@ -1,9 +1,11 @@
 ---
 id: TASK-16
 title: Flask → Starlette migration (epic)
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - codex
 created_date: '2026-04-12 04:06'
+updated_date: '2026-04-14 14:37'
 labels:
   - refactor
 dependencies: []
@@ -44,3 +46,23 @@ FastAPI's automatic Pydantic validation would silently block SQL injection paylo
 - [ ] #4 Full test suite passes on Starlette TestClient
 - [ ] #5 No regressions in intentional vulnerabilities (verified via representative vuln tests)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Rewrite app/utils/hotpatch.py for Starlette request/response objects while preserving X-Chimera educational headers and body injection behavior.
+2. Migrate remaining Flask blueprints in ordered tiers using the existing libcst codemod plus targeted manual fixes for sessions, file uploads, current_app usage, and hook-heavy routes.
+3. Expand app/asgi.py to mount every migrated router and remove migrated blueprints from app/__init__.py so Flask only remains as a shrinking compatibility path during the cutover.
+4. Replace Flask-specific middleware/error plumbing (traffic recorder, request-id monitoring, auth helpers, exception handlers) with Starlette-compatible request.state and exception handler flows.
+5. Replace Flask-SQLAlchemy usage with plain SQLAlchemy for the optional database_vulnerable endpoints and wire startup/teardown from the ASGI app.
+6. Migrate the pytest fixtures and callers to Starlette TestClient, then update Makefile/Dockerfiles/pyproject to remove Flask/Gunicorn dependencies and run on uvicorn.
+7. Verify in short loops with focused pytest runs during each slice, then broader vuln-api coverage once the routing cutover is complete.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Work started by Codex on 2026-04-14 after live inspection of the current ASGI skeleton, remaining Flask blueprints, and migration support tooling.
+
+Completed the first migration loop around app/utils/hotpatch.py and supporting routing/codemod infrastructure. Remaining work is still concentrated in bulk blueprint conversion, middleware/error plumbing, test-client migration, and infra cutover.
+<!-- SECTION:NOTES:END -->

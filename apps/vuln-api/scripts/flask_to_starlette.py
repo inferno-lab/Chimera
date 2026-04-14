@@ -41,7 +41,7 @@ class BlueprintInitTransformer(cst.CSTTransformer):
 
         stmt = updated.body[0]
 
-        # from flask import Blueprint → from starlette.routing import Router
+        # from flask import Blueprint → from app.routing import DecoratorRouter as Router
         if isinstance(stmt, cst.ImportFrom):
             module_name = stmt.module.value if isinstance(stmt.module, cst.Name) else ""
             if module_name == "flask":
@@ -53,7 +53,7 @@ class BlueprintInitTransformer(cst.CSTTransformer):
                     )
                     if has_blueprint:
                         return cst.parse_statement(
-                            "from starlette.routing import Router\n"
+                            "from app.routing import DecoratorRouter as Router\n"
                         )
 
         # foo_bp = Blueprint('foo', __name__) → foo_router = Router(routes=[])

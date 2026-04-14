@@ -1,9 +1,11 @@
 ---
 id: TASK-16.5
 title: Rewrite hotpatch decorator for Starlette
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - codex
 created_date: '2026-04-12 04:08'
+updated_date: '2026-04-14 14:37'
 labels:
   - refactor
 dependencies: []
@@ -87,3 +89,26 @@ def hotpatch(vuln_type, vuln_id=None):
 - [ ] #5 Existing vulnerability tests that assert on X-Chimera-* headers still pass
 - [ ] #6 Decorator works with VULN_REGISTRY heuristic fallback lookup
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inspect current hotpatch consumers and Starlette Tier 1 route return patterns.
+2. Rewrite the decorator as async, request-aware middleware around handlers that may return Starlette Response objects or plain payloads.
+3. Preserve registry lookup, X-Chimera header injection, and X-Chimera-Education body augmentation without relying on Flask make_response/get_json/set_data.
+4. Add or update focused tests covering patched/unpatched modes, hint/header emission, and education metadata injection.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented dual-compatible hotpatch response decoration so current Flask banking routes and future Starlette handlers both receive X-Chimera headers and optional _chimera body metadata.
+
+Addressed initial independent review findings by resolving Starlette Request from args or kwargs, stripping stale content-length when rebuilding JSON responses, and restoring best-effort metadata injection with warning logging on parse failures.
+
+Added focused tests in tests/unit/test_hotpatch.py plus router path conversion coverage in tests/unit/test_routing.py.
+
+Focused verification: `cd apps/vuln-api && uv run pytest tests/unit/test_hotpatch.py tests/unit/test_banking_routes.py tests/unit/test_routing.py -q` -> 10 passed.
+
+Independent review artifact review-20260414-103047.md was remediated; rerun review/audit artifacts are still pending from the scripted Codex reviewers.
+<!-- SECTION:NOTES:END -->
