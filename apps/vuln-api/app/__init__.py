@@ -170,56 +170,66 @@ def create_app(config=None):
     from app.error_handlers import register_error_handlers
     register_error_handlers(app)
 
-    # Import and register blueprints
-    # NOTE: main, recorder, diagnostics, throughput, government, telecom, and
-    # energy_utilities have been migrated to Starlette (see app/asgi.py).
-    # They are no longer available under Flask.
+    # Import and register blueprints.
+    # NOTE: main, recorder, diagnostics, throughput, government, telecom,
+    # energy_utilities, security_ops, loyalty, and compliance have been
+    # migrated to Starlette (see app/asgi.py).
+    # During the transition, API domains are mirrored back into Flask via
+    # register_flask_compat_routes so app.py/local WSGI callers keep working.
     from app.blueprints.auth import auth_bp
     from app.blueprints.banking import banking_bp
     from app.blueprints.mobile import mobile_bp
     from app.blueprints.healthcare import healthcare_bp
-    from app.blueprints.compliance import compliance_bp
     from app.blueprints.ecommerce import ecommerce_bp
     from app.blueprints.checkout import checkout_bp
     from app.blueprints.payments import payments_bp
-    from app.blueprints.loyalty import loyalty_bp
     from app.blueprints.insurance import insurance_bp
     from app.blueprints.infrastructure import infrastructure_bp
     from app.blueprints.attack_sim import attack_sim_bp
     from app.blueprints.ics_ot import ics_ot_bp
-    from app.blueprints.security_ops import security_ops_bp
     from app.blueprints.integrations import integrations_bp
     from app.blueprints.saas import saas_bp
     from app.blueprints.admin import admin_bp
     from app.blueprints.testing import testing_bp
     from app.blueprints.genai import genai_bp
     from app.blueprints.education import education_bp
+    from app.blueprints.government import government_router
+    from app.blueprints.telecom import telecom_router
+    from app.blueprints.energy_utilities import energy_utilities_router
+    from app.blueprints.security_ops import security_ops_router
+    from app.blueprints.loyalty import loyalty_router
+    from app.blueprints.compliance import compliance_router
     from app.middleware.traffic_recorder import TrafficRecorder
+    from app.routing import register_flask_compat_routes
 
     # Initialize Traffic Recorder
     TrafficRecorder(app)
 
-    # Register remaining Flask blueprints (Tier 1 + first Tier 2 wave now live on Starlette)
+    # Register remaining Flask blueprints (Tier 1 + current Tier 2 waves now live on Starlette)
     app.register_blueprint(auth_bp)
     app.register_blueprint(banking_bp)
     app.register_blueprint(mobile_bp)
     app.register_blueprint(healthcare_bp)
-    app.register_blueprint(compliance_bp)
     app.register_blueprint(ecommerce_bp)
     app.register_blueprint(checkout_bp)
     app.register_blueprint(payments_bp)
-    app.register_blueprint(loyalty_bp)
     app.register_blueprint(insurance_bp)
     app.register_blueprint(infrastructure_bp)
     app.register_blueprint(attack_sim_bp)
     app.register_blueprint(ics_ot_bp)
-    app.register_blueprint(security_ops_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(saas_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(testing_bp)
     app.register_blueprint(genai_bp)
     app.register_blueprint(education_bp)
+
+    register_flask_compat_routes(app, government_router, endpoint_prefix='government')
+    register_flask_compat_routes(app, telecom_router, endpoint_prefix='telecom')
+    register_flask_compat_routes(app, energy_utilities_router, endpoint_prefix='energy_utilities')
+    register_flask_compat_routes(app, security_ops_router, endpoint_prefix='security_ops')
+    register_flask_compat_routes(app, loyalty_router, endpoint_prefix='loyalty')
+    register_flask_compat_routes(app, compliance_router, endpoint_prefix='compliance')
 
     # Healthz + home — previously served by main_bp (now Starlette-only).
     # Provide minimal Flask equivalents so Docker healthchecks and SPA tests work.

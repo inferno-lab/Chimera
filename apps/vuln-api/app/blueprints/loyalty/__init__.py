@@ -1,9 +1,9 @@
 """
 Loyalty blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-loyalty_bp = Blueprint('loyalty', __name__)
+loyalty_router = Router(routes=[])
+loyalty_bp = loyalty_router
 
 from . import routes

@@ -1,9 +1,9 @@
 """
 Security Ops blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-security_ops_bp = Blueprint('security_ops', __name__)
+security_ops_router = Router(routes=[])
+security_ops_bp = security_ops_router
 
 from . import routes

@@ -19,6 +19,7 @@ from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 
 from app.config import init_config, app_config
+from app.routing import DecoratorRouter, build_http_exception_body
 
 
 # ---------------------------------------------------------------------------
@@ -88,18 +89,15 @@ async def http_exception_handler(request: Request, exc: Exception):
     detail = getattr(exc, 'detail', str(exc))
 
     body = {
-        'error': detail,
-        'status': status_code,
-        'path': str(request.url.path),
-        'method': request.method,
+        **build_http_exception_body(
+            status_code=status_code,
+            detail=str(detail),
+            path=str(request.url.path),
+            method=request.method,
+            headers=dict(request.headers),
+            query_params=dict(request.query_params),
+        )
     }
-
-    if app_config.debug:
-        body['debug'] = {
-            'headers': dict(request.headers),
-            'query_params': dict(request.query_params),
-        }
-
     return JSONResponse(body, status_code=status_code)
 
 
@@ -165,7 +163,7 @@ def create_app(config: dict | None = None) -> Starlette:
     """
     cfg = init_config(config)
 
-    # Ported blueprint routers (Tier 1 + first Tier 2 wave)
+    # Ported blueprint routers (Tier 1 + Tier 2 waves)
     from app.blueprints.main import main_router
     from app.blueprints.recorder import recorder_router
     from app.blueprints.diagnostics import diagnostics_router
@@ -173,6 +171,9 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.government import government_router
     from app.blueprints.telecom import telecom_router
     from app.blueprints.energy_utilities import energy_utilities_router
+    from app.blueprints.security_ops import security_ops_router
+    from app.blueprints.loyalty import loyalty_router
+    from app.blueprints.compliance import compliance_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
@@ -185,7 +186,11 @@ def create_app(config: dict | None = None) -> Starlette:
         *government_router.routes,
         *telecom_router.routes,
         *energy_utilities_router.routes,
+        *security_ops_router.routes,
+        *loyalty_router.routes,
+        *compliance_router.routes,
     ]
+    routes.sort(key=DecoratorRouter._route_sort_key)
 
     # SPA static files
     web_dist_dir = os.path.join(os.path.dirname(__file__), 'web_dist')

@@ -61,3 +61,23 @@ def test_decorator_router_prioritizes_static_routes_over_dynamic_matches():
 
     assert response.status_code == 200
     assert response.json() == {"export": True}
+
+
+def test_decorator_router_demotes_path_converters_below_normal_params():
+    router = DecoratorRouter(routes=[])
+
+    @router.route("/api/v1/files/<path:file_path>")
+    async def path_handler(request, file_path):
+        return JSONResponse({"kind": "path", "file_path": file_path})
+
+    @router.route("/api/v1/files/<file_id>")
+    async def param_handler(request, file_id):
+        return JSONResponse({"kind": "param", "file_id": file_id})
+
+    app = Starlette(routes=router.routes)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/files/report.csv")
+
+    assert response.status_code == 200
+    assert response.json() == {"kind": "param", "file_id": "report.csv"}

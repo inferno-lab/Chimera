@@ -11,11 +11,11 @@ def test_grid_dispatch_override(asgi_client):
     assert data['dispatch']['override_limits'] is True
 
 
-def test_grid_dispatch_override_allows_empty_body(asgi_client):
+def test_grid_dispatch_override_rejects_empty_body(asgi_client):
     response = asgi_client.post('/api/v1/energy-utilities/grid/dispatch', content=b'')
-    assert response.status_code == 201
+    assert response.status_code == 415
     data = response.json()
-    assert data['dispatch']['unit_id'] is None
+    assert data['error'] == 'Content-Type must be application/json'
 
 
 def test_meter_readings_idor(asgi_client):

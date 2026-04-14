@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:07'
-updated_date: '2026-04-14 15:35'
+updated_date: '2026-04-14 17:23'
 labels:
   - refactor
 dependencies: []
@@ -83,4 +83,6 @@ Verification: cd apps/vuln-api && uv run pytest tests/unit/test_government_route
 Source review receipts: .agents/reviews/review-20260414-111916.md (blocked on JSON parsing), .agents/reviews/review-20260414-112325.md (pass with issues), .agents/reviews/review-20260414-112739.md (source-only pass with issues, no P0/P1).
 
 Test audit receipt: .agents/reviews/test-audit-20260414-113044.md. Main findings are broader missing endpoint coverage across these blueprints and helper edge cases; no regression was found in the migrated route/test slice.
+
+Second Tier 2 Starlette wave landed for security_ops, loyalty, and compliance.\nMounted the three routers in app/asgi.py and removed direct Flask blueprint registration.\nAdded Flask compatibility mirroring for migrated Starlette routers so app.py/create_app() continues serving migrated domains during the transition.\nHardened app/routing.py with shared JSON parsing semantics, shared HTTP exception payload building, path-param signature filtering, Flask path denormalization, and combined ASGI route specificity sorting.\nRestored stricter Flask-aligned JSON behavior for migrated mutations: wrong Content-Type returns 415, malformed JSON returns 400, non-object JSON returns 400, and strict compliance routes reject missing/null bodies.\nAdded targeted Starlette route tests for security_ops, loyalty, and compliance plus Flask/ASGI parity coverage in test_migrated_flask_compat_routes.py and additional router regression coverage in test_routing.py.\nVerification: cd apps/vuln-api && uv run pytest tests/unit/test_migrated_flask_compat_routes.py tests/unit/test_security_ops_routes.py tests/unit/test_loyalty_routes.py tests/unit/test_compliance_routes.py tests/unit/test_government_routes.py tests/unit/test_telecom_routes.py tests/unit/test_energy_utilities_routes.py tests/unit/test_banking_routes.py tests/unit/test_hotpatch.py tests/unit/test_routing.py -q -> 60 passed in 1.58s\nCode review receipts: .agents/reviews/review-20260414-131942.md (holistic final review, PASS WITH ISSUES).\nSupporting review history for the remediation loop: .agents/reviews/review-20260414-124101.md, review-20260414-124653.md, review-20260414-125113.md, review-20260414-125553.md, review-20260414-125959.md, review-20260414-130334.md, review-20260414-130733.md, review-20260414-131234.md.\nTest audit receipt: .agents/reviews/test-audit-20260414-131637.md. Audit confirms parity/error-path coverage exists and calls out follow-on gaps in routing helper depth rather than a regression in this slice.
 <!-- SECTION:NOTES:END -->

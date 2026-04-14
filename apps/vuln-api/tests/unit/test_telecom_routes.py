@@ -18,11 +18,11 @@ def test_sim_swap_bypass(asgi_client):
     assert data['swap']['bypass_verification'] is True
 
 
-def test_sim_swap_bypass_allows_empty_body(asgi_client):
+def test_sim_swap_bypass_rejects_empty_body(asgi_client):
     response = asgi_client.post('/api/v1/telecom/subscribers/sub-1/sim-swap', content=b'')
-    assert response.status_code == 201
+    assert response.status_code == 415
     data = response.json()
-    assert data['swap']['new_sim'] is None
+    assert data['error'] == 'Content-Type must be application/json'
 
 
 def test_porting_export(asgi_client):

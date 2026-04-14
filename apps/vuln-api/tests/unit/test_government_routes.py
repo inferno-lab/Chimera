@@ -33,11 +33,11 @@ def test_service_request_tampering(asgi_client):
     assert data['service_request']['priority'] == 'critical'
 
 
-def test_service_request_tampering_allows_empty_body(asgi_client):
+def test_service_request_tampering_rejects_empty_body(asgi_client):
     response = asgi_client.post('/api/v1/gov/service-requests', content=b'')
-    assert response.status_code == 201
+    assert response.status_code == 415
     data = response.json()
-    assert data['service_request']['request_type'] == 'general'
+    assert data['error'] == 'Content-Type must be application/json'
 
 
 def test_benefits_eligibility_override(asgi_client):

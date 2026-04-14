@@ -1,41 +1,54 @@
 """
 Routes for security ops endpoints.
 """
-
-from flask import request, jsonify, render_template_string, session
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from datetime import datetime, timedelta
 import uuid
 import random
 import json
 import time
 
-from . import security_ops_bp
+from . import security_ops_router
 from app.models import *
+from app.routing import get_json_or_default
 
-@security_ops_bp.route('/api/security/monitoring/bypass')
-def security_monitoring_bypass():
+@security_ops_router.route('/api/security/monitoring/bypass')
+async def security_monitoring_bypass(request: Request):
     """Bypass security monitoring"""
-    return jsonify({
+    return JSONResponse({
         'strategies': ['log_suppression', 'traffic_obfuscation', 'alert_saturation'],
         'monitoring_disabled': True,
         'duration_minutes': 45
     })
 
 
-@security_ops_bp.route('/api/incidents/create', methods=['POST'])
-def incidents_create():
+@security_ops_router.route('/api/incidents/create', methods=['POST'])
+async def incidents_create(request: Request):
     """Create security incident record"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     incident_type = data.get('incident_type', '')
     severity = data.get('severity', 'medium')
     description = data.get('description', '')
     affected_systems = data.get('affected_systems', [])
+    incident_id = f"INC-{uuid.uuid4().hex[:8]}"
+
+    return JSONResponse({
+        'incident_id': incident_id,
+        'incident_type': incident_type,
+        'severity': severity,
+        'description': description,
+        'affected_systems': affected_systems,
+        'status': 'open',
+        'created_at': datetime.now().isoformat(),
+        'warning': 'Incident created without analyst approval'
+    }, status_code=201)
 
 
-@security_ops_bp.route('/api/threats/indicators')
-def threats_indicators():
+@security_ops_router.route('/api/threats/indicators')
+async def threats_indicators(request: Request):
     """Get threat intelligence indicators"""
-    return jsonify({
+    return JSONResponse({
         'indicators': [
             {
                 'type': 'ip_address',
@@ -86,45 +99,77 @@ def threats_indicators():
     })
 
 
-@security_ops_bp.route('/api/remediation/apply', methods=['POST'])
-def remediation_apply():
+@security_ops_router.route('/api/remediation/apply', methods=['POST'])
+async def remediation_apply(request: Request):
     """Apply security remediation actions"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     remediation_type = data.get('remediation_type', '')
     target_systems = data.get('target_systems', [])
     automated = data.get('automated', True)
 
+    return JSONResponse({
+        'remediation_type': remediation_type,
+        'target_systems': target_systems,
+        'automated': automated,
+        'status': 'applied',
+        'warning': 'Remediation executed without change-control review'
+    })
 
-@security_ops_bp.route('/api/security/posture/harden', methods=['PUT'])
-def security_posture_harden():
+
+@security_ops_router.route('/api/security/posture/harden', methods=['PUT'])
+async def security_posture_harden(request: Request):
     """Harden security posture"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     hardening_profile = data.get('hardening_profile', 'standard')
     scope = data.get('scope', 'all')
 
+    return JSONResponse({
+        'hardening_profile': hardening_profile,
+        'scope': scope,
+        'hardened': True,
+        'warning': 'Security posture changed without authorization'
+    })
 
-@security_ops_bp.route('/api/patches/deploy', methods=['POST'])
-def patches_deploy():
+
+@security_ops_router.route('/api/patches/deploy', methods=['POST'])
+async def patches_deploy(request: Request):
     """Deploy security patches"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     patch_ids = data.get('patch_ids', [])
     target_systems = data.get('target_systems', [])
     deployment_window = data.get('deployment_window', 'maintenance')
 
+    return JSONResponse({
+        'patch_ids': patch_ids,
+        'target_systems': target_systems,
+        'deployment_window': deployment_window,
+        'patch_count': len(patch_ids),
+        'status': 'deployed',
+        'warning': 'Patches deployed without maintenance guardrails'
+    })
 
-@security_ops_bp.route('/api/security/alerts/acknowledge', methods=['POST'])
-def security_alerts_acknowledge():
+
+@security_ops_router.route('/api/security/alerts/acknowledge', methods=['POST'])
+async def security_alerts_acknowledge(request: Request):
     """Acknowledge security alerts"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     alert_ids = data.get('alert_ids', [])
     analyst_id = data.get('analyst_id', '')
     notes = data.get('notes', '')
 
+    return JSONResponse({
+        'alert_ids': alert_ids,
+        'acknowledged_by': analyst_id,
+        'notes': notes,
+        'acknowledged_count': len(alert_ids),
+        'warning': 'Alerts acknowledged without ownership checks'
+    })
 
-@security_ops_bp.route('/api/defense/metrics')
-def defense_metrics():
+
+@security_ops_router.route('/api/defense/metrics')
+async def defense_metrics(request: Request):
     """Get defensive security metrics"""
-    return jsonify({
+    return JSONResponse({
         'metrics_period': '24_hours',
         'detection_metrics': {
             'total_events_processed': random.randint(1000000, 5000000),
@@ -159,5 +204,3 @@ def defense_metrics():
         'timestamp': datetime.now().isoformat(),
         'dashboard_url': 'https://soc.example.com/metrics'
     })
-
-

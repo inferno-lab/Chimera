@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:06'
-updated_date: '2026-04-14 15:35'
+updated_date: '2026-04-14 17:23'
 labels:
   - refactor
 dependencies: []
@@ -67,4 +67,6 @@ Work started by Codex on 2026-04-14 after live inspection of the current ASGI sk
 Completed the first migration loop around app/utils/hotpatch.py and supporting routing/codemod infrastructure. Remaining work is still concentrated in bulk blueprint conversion, middleware/error plumbing, test-client migration, and infra cutover.
 
 Completed first Tier 2 Starlette migration slice: government, telecom, and energy_utilities now run under app/asgi.py with ASGI test fixtures and focused passing validation (36 targeted tests). Routing shim now forwards path params, preserves static-over-dynamic precedence, and provides lenient JSON parsing for migrated handlers.
+
+Completed the second Tier 2 Starlette migration wave for security_ops, loyalty, and compliance with Flask compatibility bridging preserved for migrated domains. Verification: targeted mixed ASGI/Flask suite passed at 60 tests. Final review: .agents/reviews/review-20260414-131942.md. Test audit: .agents/reviews/test-audit-20260414-131637.md.
 <!-- SECTION:NOTES:END -->
