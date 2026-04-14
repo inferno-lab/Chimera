@@ -1,9 +1,8 @@
 """
 GenAI blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-genai_bp = Blueprint('genai', __name__)
+genai_router = Router(routes=[])
 
 from . import routes

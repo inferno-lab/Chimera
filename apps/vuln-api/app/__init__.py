@@ -191,7 +191,6 @@ def create_app(config=None):
     from app.blueprints.saas import saas_bp
     from app.blueprints.admin import admin_bp
     from app.blueprints.testing import testing_bp
-    from app.blueprints.genai import genai_bp
     from app.blueprints.education import education_bp
     from app.blueprints.government import government_router
     from app.blueprints.telecom import telecom_router
@@ -201,6 +200,7 @@ def create_app(config=None):
     from app.blueprints.compliance import compliance_router
     from app.blueprints.ics_ot import ics_ot_router
     from app.blueprints.infrastructure import infrastructure_router
+    from app.blueprints.genai import genai_router
     from app.middleware.traffic_recorder import TrafficRecorder
     from app.routing import register_flask_compat_routes
 
@@ -221,7 +221,6 @@ def create_app(config=None):
     app.register_blueprint(saas_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(testing_bp)
-    app.register_blueprint(genai_bp)
     app.register_blueprint(education_bp)
 
     register_flask_compat_routes(app, government_router, endpoint_prefix='government')
@@ -232,6 +231,7 @@ def create_app(config=None):
     register_flask_compat_routes(app, compliance_router, endpoint_prefix='compliance')
     register_flask_compat_routes(app, ics_ot_router, endpoint_prefix='ics_ot')
     register_flask_compat_routes(app, infrastructure_router, endpoint_prefix='infrastructure')
+    register_flask_compat_routes(app, genai_router, endpoint_prefix='genai')
 
     # Healthz + home — previously served by main_bp (now Starlette-only).
     # Provide minimal Flask equivalents so Docker healthchecks and SPA tests work.

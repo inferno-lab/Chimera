@@ -1,5 +1,7 @@
 """Compatibility tests for migrated Starlette routes exposed via Flask create_app()."""
 
+import io
+
 from flask import Flask
 import pytest
 from starlette.applications import Starlette
@@ -34,6 +36,7 @@ def assert_matching_error_contract(flask_response, asgi_response):
         ("/api/security/monitoring/bypass", 200, "monitoring_disabled", True),
         ("/api/loyalty/program/details", 200, "points_expiry_days", 365),
         ("/api/compliance/status", 200, "audit_ready", True),
+        ("/api/v1/genai/models/config", 200, "active_model", "gpt-4-turbo"),
     ],
 )
 def test_migrated_routes_remain_reachable_via_flask_compat(client, path, expected_status, field, expected_value):
@@ -112,6 +115,53 @@ def test_infrastructure_mutation_parity_between_flask_and_asgi(client, asgi_clie
     assert asgi_response.json()["backdoor_key"] == "gw-shell"
     assert flask_response.get_json()["persistence_scope"] == "gateway"
     assert asgi_response.json()["persistence_scope"] == "gateway"
+
+
+def test_genai_upload_text_parity_between_flask_and_asgi(client, asgi_client):
+    payload = {"content": "knowledge base seed"}
+
+    flask_response = client.post("/api/v1/genai/knowledge/upload", json=payload)
+    asgi_response = asgi_client.post("/api/v1/genai/knowledge/upload", json=payload)
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.get_json()["status"] == "success"
+    assert asgi_response.json()["status"] == "success"
+    assert flask_response.get_json()["message"] == "Text content indexed"
+    assert asgi_response.json()["message"] == "Text content indexed"
+
+
+def test_genai_upload_file_parity_between_flask_and_asgi(client, asgi_client):
+    flask_response = client.post(
+        "/api/v1/genai/knowledge/upload",
+        data={"file": (io.BytesIO(b"#!/bin/sh"), "../../../../tmp/payload.sh")},
+        content_type="multipart/form-data",
+    )
+    asgi_response = asgi_client.post(
+        "/api/v1/genai/knowledge/upload",
+        files={"file": ("../../../../tmp/payload.sh", b"#!/bin/sh", "text/plain")},
+    )
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.get_json()["vulnerability"] == "PATH_TRAVERSAL_DETECTED"
+    assert asgi_response.json()["vulnerability"] == "PATH_TRAVERSAL_DETECTED"
+    assert flask_response.get_json()["path"].endswith("../../../../tmp/payload.sh")
+    assert asgi_response.json()["path"].endswith("../../../../tmp/payload.sh")
+
+
+def test_genai_graphql_batch_parity_between_flask_and_asgi(client, asgi_client):
+    payload = [{"query": "{ systemInfo { version } }"}, {"query": "{ systemInfo { version } }"}]
+
+    flask_response = client.post("/api/v1/genai/graphql", json=payload)
+    asgi_response = asgi_client.post("/api/v1/genai/graphql", json=payload)
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert len(flask_response.get_json()) == 2
+    assert len(asgi_response.json()) == 2
+    assert flask_response.get_json()[0]["data"]["systemInfo"]["version"] == "2.1.0"
+    assert asgi_response.json()[0]["data"]["systemInfo"]["version"] == "2.1.0"
 
 
 def test_malformed_json_rejected_by_flask_and_asgi(client, asgi_client):

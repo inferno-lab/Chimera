@@ -174,6 +174,7 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.compliance import compliance_router
     from app.blueprints.ics_ot import ics_ot_router
     from app.blueprints.infrastructure import infrastructure_router
+    from app.blueprints.genai import genai_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
@@ -191,6 +192,7 @@ def create_app(config: dict | None = None) -> Starlette:
         *compliance_router.routes,
         *ics_ot_router.routes,
         *infrastructure_router.routes,
+        *genai_router.routes,
     ]
 
     # SPA static files

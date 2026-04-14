@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:06'
-updated_date: '2026-04-14 18:44'
+updated_date: '2026-04-14 23:39'
 labels:
   - refactor
 dependencies: []
@@ -73,4 +73,8 @@ Completed the second Tier 2 Starlette migration wave for security_ops, loyalty, 
 2026-04-14: Completed the third Tier 2 Starlette migration wave by moving ics_ot and infrastructure onto the ASGI app while keeping Flask mixed-mode compatibility via register_flask_compat_routes.
 
 Wave receipt: targeted regression batch passed with 78 tests; source reviews in .agents/reviews/review-20260414-141735.md, review-20260414-142249.md, review-20260414-143018.md, and review-20260414-143446.md; test audit in .agents/reviews/test-audit-20260414-143935.md.
+
+2026-04-14: Completed another Tier 2 Starlette migration wave by moving genai onto the ASGI app and preserving create_app() reachability through the Flask compatibility bridge.
+
+Wave receipt: targeted regression batch passed with 88 tests in 6.72s; source review artifacts .agents/reviews/review-20260414-192436.md and review-20260414-192831.md; test audit artifact .agents/reviews/test-audit-20260414-193416.md.
 <!-- SECTION:NOTES:END -->

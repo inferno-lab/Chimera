@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response as StarletteResponse
-from starlette.routing import Route, Router as _StarletteRouter
+from starlette.routing import BaseRoute, Route, Router as _StarletteRouter
 
 _PATH_PARAM_RE = re.compile(r"<(?:(?P<converter>[a-zA-Z_][a-zA-Z0-9_]*):)?(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)>")
 _STARLETTE_PATH_PARAM_RE = re.compile(r"{(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)(?::(?P<converter>[a-zA-Z_][a-zA-Z0-9_]*))?}")
@@ -91,7 +91,8 @@ class _AdapterURL:
         self.query = query
         self.scheme = flask_request.scheme
         self.hostname = flask_request.host.split(":", 1)[0] if flask_request.host else None
-        self.port = flask_request.environ.get("SERVER_PORT")
+        port = flask_request.environ.get("SERVER_PORT")
+        self.port = int(port) if port else None
         self.netloc = flask_request.host
         self.is_secure = flask_request.is_secure
 
@@ -195,7 +196,7 @@ class DecoratorRouter(_StarletteRouter):
         return self.route(path, methods=['PATCH'], **kwargs)
 
 
-def sort_routes_by_specificity(routes: list[Route]) -> None:
+def sort_routes_by_specificity(routes: list[BaseRoute]) -> None:
     """Sort a route list using the shared DecoratorRouter specificity rules."""
     routes.sort(key=DecoratorRouter._route_sort_key)
 
@@ -206,6 +207,19 @@ async def get_json_or_default(request: Request, default=None, *, strict: bool = 
     Non-JSON media types raise 415, malformed JSON raises 400, and a JSON null
     body falls back to the provided default to match request.get_json() or {}.
     """
+    data = await get_json_value(request)
+
+    if data is None:
+        if strict:
+            raise HTTPException(status_code=400, detail="JSON body is required")
+        return {} if default is None else default
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="JSON body must be an object")
+    return data
+
+
+async def get_json_value(request: Request, default=None):
+    """Parse a JSON request body using the same error contract as Flask 3."""
     content_type = str(request.headers.get("content-type", ""))
     if not _is_json_media_type(content_type):
         raise HTTPException(status_code=415, detail="Content-Type must be application/json")
@@ -218,11 +232,7 @@ async def get_json_or_default(request: Request, default=None, *, strict: bool = 
         raise HTTPException(status_code=400, detail="Malformed JSON body") from exc
 
     if data is None:
-        if strict:
-            raise HTTPException(status_code=400, detail="JSON body is required")
-        return {} if default is None else default
-    if not isinstance(data, dict):
-        raise HTTPException(status_code=400, detail="JSON body must be an object")
+        return default
     return data
 
 
@@ -244,13 +254,21 @@ class FlaskRequestAdapter:
         self.client = SimpleNamespace(host=flask_request.remote_addr, port=None)
 
     async def json(self):
-        return json.loads(self._request.get_data(cache=True))
+        raw = self._request.get_data(cache=True)
+        if not raw:
+            return None
+        return json.loads(raw)
 
     async def body(self):
         return self._request.get_data()
 
     async def form(self):
-        return self._request.form
+        from werkzeug.datastructures import CombinedMultiDict
+
+        # Transitional compat: file entries remain Werkzeug FileStorage objects
+        # instead of Starlette UploadFile instances. Current migrated handlers
+        # only rely on shared attributes such as filename, so this is enough.
+        return CombinedMultiDict([self._request.form, self._request.files])
 
 
 def _coerce_flask_response(result):
@@ -271,6 +289,9 @@ def _coerce_flask_response(result):
             return response
 
         async def _render_starlette_response():
+            # Transitional fallback for response types like StreamingResponse that
+            # do not populate body eagerly; this scope is only intended for
+            # body-only rendering and not for responses that inspect request metadata.
             scope = {
                 "type": "http",
                 "http_version": "1.1",

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:07'
-updated_date: '2026-04-14 18:44'
+updated_date: '2026-04-14 23:39'
 labels:
   - refactor
 dependencies: []
@@ -97,4 +97,16 @@ Verification: cd apps/vuln-api && uv run pytest tests/unit/test_ics_ot_routes.py
 Source review artifacts: .agents/reviews/review-20260414-141735.md, .agents/reviews/review-20260414-142249.md, .agents/reviews/review-20260414-143018.md, .agents/reviews/review-20260414-143446.md. The final review remained BLOCKED on a Flask get_json semantics assumption contradicted by a live Flask 3 probe plus the new parity regression test in tests/unit/test_routing.py.
 
 Test audit artifact: .agents/reviews/test-audit-20260414-143935.md. Report is broader missing endpoint coverage for existing migrated domains, not a regression in the ics_ot/infrastructure slice.
+
+2026-04-14: Migrated genai into the Starlette mixed-mode path. app/asgi.py now mounts genai_router, create_app() no longer registers genai_bp directly, and Flask compatibility is preserved via register_flask_compat_routes(app, genai_router, endpoint_prefix='genai').
+
+Manual migration work for this wave: replaced request.files handling with await request.form() in app/blueprints/genai/routes.py, preserved the legacy GraphQL batch-array semantics while enforcing Flask-aligned JSON error behavior, and added asyncio.sleep() in the migrated async handlers so the simulated latency paths do not block the ASGI event loop.
+
+Extended app/routing.py again during this slice: added get_json_value() for routes that intentionally accept non-object JSON, kept empty-body Flask compat JSON semantics by returning None before json.loads(), and merged form/files for Flask compat multipart handling used by the genai upload route.
+
+Added focused coverage in tests/unit/test_genai_routes.py and expanded tests/unit/test_migrated_flask_compat_routes.py with genai GET/JSON/multipart/batch parity checks. Verification: cd apps/vuln-api && uv run pytest tests/unit/test_genai_routes.py tests/unit/test_migrated_flask_compat_routes.py tests/unit/test_routing.py tests/unit/test_ics_ot_routes.py tests/unit/test_infrastructure_routes.py tests/unit/test_security_ops_routes.py tests/unit/test_loyalty_routes.py tests/unit/test_compliance_routes.py tests/unit/test_government_routes.py tests/unit/test_telecom_routes.py tests/unit/test_energy_utilities_routes.py tests/unit/test_banking_routes.py tests/unit/test_hotpatch.py -q -> 88 passed in 6.72s.
+
+Source review artifacts for this wave: .agents/reviews/review-20260414-192436.md (initial BLOCKED on blocking time.sleep in async handlers), then .agents/reviews/review-20260414-192831.md (PASS WITH ISSUES after asyncio.sleep migration and adapter/type clarifications).
+
+Test audit artifact: .agents/reviews/test-audit-20260414-193416.md. Audit calls out additional branch and endpoint coverage still missing across genai, ics_ot, infrastructure, routing, and ASGI middleware; it does not identify a regression in the genai migration slice.
 <!-- SECTION:NOTES:END -->
