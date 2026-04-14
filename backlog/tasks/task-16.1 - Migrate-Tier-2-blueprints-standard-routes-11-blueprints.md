@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:07'
-updated_date: '2026-04-14 17:23'
+updated_date: '2026-04-14 18:44'
 labels:
   - refactor
 dependencies: []
@@ -85,4 +85,16 @@ Source review receipts: .agents/reviews/review-20260414-111916.md (blocked on JS
 Test audit receipt: .agents/reviews/test-audit-20260414-113044.md. Main findings are broader missing endpoint coverage across these blueprints and helper edge cases; no regression was found in the migrated route/test slice.
 
 Second Tier 2 Starlette wave landed for security_ops, loyalty, and compliance.\nMounted the three routers in app/asgi.py and removed direct Flask blueprint registration.\nAdded Flask compatibility mirroring for migrated Starlette routers so app.py/create_app() continues serving migrated domains during the transition.\nHardened app/routing.py with shared JSON parsing semantics, shared HTTP exception payload building, path-param signature filtering, Flask path denormalization, and combined ASGI route specificity sorting.\nRestored stricter Flask-aligned JSON behavior for migrated mutations: wrong Content-Type returns 415, malformed JSON returns 400, non-object JSON returns 400, and strict compliance routes reject missing/null bodies.\nAdded targeted Starlette route tests for security_ops, loyalty, and compliance plus Flask/ASGI parity coverage in test_migrated_flask_compat_routes.py and additional router regression coverage in test_routing.py.\nVerification: cd apps/vuln-api && uv run pytest tests/unit/test_migrated_flask_compat_routes.py tests/unit/test_security_ops_routes.py tests/unit/test_loyalty_routes.py tests/unit/test_compliance_routes.py tests/unit/test_government_routes.py tests/unit/test_telecom_routes.py tests/unit/test_energy_utilities_routes.py tests/unit/test_banking_routes.py tests/unit/test_hotpatch.py tests/unit/test_routing.py -q -> 60 passed in 1.58s\nCode review receipts: .agents/reviews/review-20260414-131942.md (holistic final review, PASS WITH ISSUES).\nSupporting review history for the remediation loop: .agents/reviews/review-20260414-124101.md, review-20260414-124653.md, review-20260414-125113.md, review-20260414-125553.md, review-20260414-125959.md, review-20260414-130334.md, review-20260414-130733.md, review-20260414-131234.md.\nTest audit receipt: .agents/reviews/test-audit-20260414-131637.md. Audit confirms parity/error-path coverage exists and calls out follow-on gaps in routing helper depth rather than a regression in this slice.
+
+2026-04-14: Migrated the third Tier 2 Starlette wave: ics_ot and infrastructure now mount in app/asgi.py and are mirrored back into create_app() via register_flask_compat_routes instead of direct Flask blueprint registration.
+
+Hardened app/routing.py during this wave: JSON/flask compat coercion now preserves ASGI content-type for Flask get_json(), reuses a shared Flask response builder for non-streaming and streaming responses, parses compat JSON bodies directly from raw request bytes, and exposes basic request.url surface on the Flask adapter.
+
+Added targeted coverage in tests/unit/test_ics_ot_routes.py, tests/unit/test_infrastructure_routes.py, tests/unit/test_migrated_flask_compat_routes.py, and tests/unit/test_routing.py including Flask-vs-ASGI JSON parity, streaming-response compatibility, request.url adapter coverage, and direct proof that get_json_or_default matches current Flask 3 request.get_json() behavior for missing content-type, malformed JSON, null JSON, and valid objects.
+
+Verification: cd apps/vuln-api && uv run pytest tests/unit/test_ics_ot_routes.py tests/unit/test_infrastructure_routes.py tests/unit/test_migrated_flask_compat_routes.py tests/unit/test_security_ops_routes.py tests/unit/test_loyalty_routes.py tests/unit/test_compliance_routes.py tests/unit/test_government_routes.py tests/unit/test_telecom_routes.py tests/unit/test_energy_utilities_routes.py tests/unit/test_banking_routes.py tests/unit/test_hotpatch.py tests/unit/test_routing.py -q -> 78 passed in 1.87s.
+
+Source review artifacts: .agents/reviews/review-20260414-141735.md, .agents/reviews/review-20260414-142249.md, .agents/reviews/review-20260414-143018.md, .agents/reviews/review-20260414-143446.md. The final review remained BLOCKED on a Flask get_json semantics assumption contradicted by a live Flask 3 probe plus the new parity regression test in tests/unit/test_routing.py.
+
+Test audit artifact: .agents/reviews/test-audit-20260414-143935.md. Report is broader missing endpoint coverage for existing migrated domains, not a regression in the ics_ot/infrastructure slice.
 <!-- SECTION:NOTES:END -->

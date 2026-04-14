@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response as StarletteResponse
 from starlette.routing import Route, Router as _StarletteRouter
 
 _PATH_PARAM_RE = re.compile(r"<(?:(?P<converter>[a-zA-Z_][a-zA-Z0-9_]*):)?(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)>")
@@ -41,7 +41,7 @@ def _is_json_media_type(content_type: str | None) -> bool:
 def build_http_exception_body(
     *,
     status_code: int,
-    detail: str,
+    detail,
     path: str,
     method: str,
     headers: dict | None = None,
@@ -66,11 +66,45 @@ def build_http_exception_body(
     return body
 
 
+def _build_flask_response(*, body: bytes, status: int, raw_headers) -> "FlaskResponse":
+    from flask import Response as FlaskResponse
+
+    content_type = None
+    for header, value in raw_headers:
+        if header.decode("latin-1").lower() == "content-type":
+            content_type = value.decode("latin-1")
+            break
+
+    response = FlaskResponse(body, status=status, content_type=content_type)
+    for header, value in raw_headers:
+        header_name = header.decode("latin-1")
+        if header_name.lower() in {"content-length", "content-type"}:
+            continue
+        response.headers.add(header_name, value.decode("latin-1"))
+    return response
+
+
+class _AdapterURL:
+    def __init__(self, flask_request, path: str, query: str = ""):
+        self._request = flask_request
+        self.path = path
+        self.query = query
+        self.scheme = flask_request.scheme
+        self.hostname = flask_request.host.split(":", 1)[0] if flask_request.host else None
+        self.port = flask_request.environ.get("SERVER_PORT")
+        self.netloc = flask_request.host
+        self.is_secure = flask_request.is_secure
+
+    def __str__(self) -> str:
+        return self._request.url
+
+
 class DecoratorRouter(_StarletteRouter):
     """Router subclass that supports @router.route() decorators."""
 
     @staticmethod
     def _route_sort_key(route: Route) -> tuple:
+        """Prefer static segments, then typed params, then untyped params, then path catch-alls."""
         path = getattr(route, "path", "")
         segments = [segment for segment in path.split("/") if segment]
 
@@ -161,8 +195,17 @@ class DecoratorRouter(_StarletteRouter):
         return self.route(path, methods=['PATCH'], **kwargs)
 
 
+def sort_routes_by_specificity(routes: list[Route]) -> None:
+    """Sort a route list using the shared DecoratorRouter specificity rules."""
+    routes.sort(key=DecoratorRouter._route_sort_key)
+
+
 async def get_json_or_default(request: Request, default=None, *, strict: bool = False):
-    """Mirror Flask JSON parsing semantics for migrated Starlette handlers."""
+    """Mirror current Flask 3 request.get_json() semantics for migrated handlers.
+
+    Non-JSON media types raise 415, malformed JSON raises 400, and a JSON null
+    body falls back to the provided default to match request.get_json() or {}.
+    """
     content_type = str(request.headers.get("content-type", ""))
     if not _is_json_media_type(content_type):
         raise HTTPException(status_code=415, detail="Content-Type must be application/json")
@@ -187,15 +230,27 @@ class FlaskRequestAdapter:
     """Expose the Starlette request surface migrated handlers rely on."""
 
     def __init__(self, flask_request, path_params: dict[str, str]):
+        from flask import session as flask_session
+
         self._request = flask_request
         self.path_params = path_params
         self.query_params = flask_request.args
         self.headers = flask_request.headers
         self.method = flask_request.method
-        self.url = SimpleNamespace(path=flask_request.path)
+        self.url = _AdapterURL(flask_request, flask_request.path, flask_request.query_string.decode())
+        self.cookies = flask_request.cookies
+        self.session = flask_session
+        self.state = SimpleNamespace()
+        self.client = SimpleNamespace(host=flask_request.remote_addr, port=None)
 
     async def json(self):
-        return self._request.get_json()
+        return json.loads(self._request.get_data(cache=True))
+
+    async def body(self):
+        return self._request.get_data()
+
+    async def form(self):
+        return self._request.form
 
 
 def _coerce_flask_response(result):
@@ -204,23 +259,68 @@ def _coerce_flask_response(result):
     if isinstance(result, FlaskResponse):
         return result
 
-    if hasattr(result, "status_code") and hasattr(result, "headers"):
-        body = getattr(result, "body", b"")
-        response = FlaskResponse(body, status=getattr(result, "status_code", 200))
-        for header, value in result.headers.items():
-            if header.lower() == "content-length":
-                continue
-            response.headers[header] = value
-        media_type = getattr(result, "media_type", None)
-        if media_type and "Content-Type" not in response.headers:
-            response.mimetype = media_type
-        return response
+    if isinstance(result, StarletteResponse):
+        raw_headers = getattr(result, "raw_headers", [])
+        body = getattr(result, "body", None)
+
+        if body is not None:
+            response = _build_flask_response(body=body, status=result.status_code, raw_headers=raw_headers)
+            media_type = getattr(result, "media_type", None)
+            if media_type and "Content-Type" not in response.headers:
+                response.mimetype = media_type
+            return response
+
+        async def _render_starlette_response():
+            scope = {
+                "type": "http",
+                "http_version": "1.1",
+                "method": "GET",
+                "path": "/",
+                "raw_path": b"/",
+                "query_string": b"",
+                "headers": [],
+            }
+            started = {"status": getattr(result, "status_code", 200), "headers": []}
+            body_parts: list[bytes] = []
+            receive_count = 0
+
+            async def receive():
+                nonlocal receive_count
+                receive_count += 1
+                if receive_count == 1:
+                    return {"type": "http.request", "body": b"", "more_body": False}
+                return {"type": "http.disconnect"}
+
+            async def send(message):
+                if message["type"] == "http.response.start":
+                    started["status"] = message["status"]
+                    started["headers"] = message.get("headers", [])
+                elif message["type"] == "http.response.body":
+                    body_parts.append(message.get("body", b""))
+
+            await result(scope, receive, send)
+            response = _build_flask_response(
+                body=b"".join(body_parts),
+                status=started["status"],
+                raw_headers=started["headers"],
+            )
+            media_type = getattr(result, "media_type", None)
+            if media_type and "Content-Type" not in response.headers:
+                response.mimetype = media_type
+            return response
+
+        return asyncio.run(_render_starlette_response())
 
     return result
 
 
 def register_flask_compat_routes(app, router: DecoratorRouter, *, endpoint_prefix: str) -> None:
-    """Mirror migrated Starlette routes into Flask while the transition is in flight."""
+    """Mirror migrated Starlette routes into Flask while the transition is in flight.
+
+    This bridge is intentionally WSGI-only transitional glue; it executes async
+    handlers with asyncio.run() so create_app() can keep serving migrated
+    Starlette routes until the full cutover is complete.
+    """
     from flask import request as flask_request
 
     for index, route in enumerate(router.routes):
@@ -239,7 +339,7 @@ def register_flask_compat_routes(app, router: DecoratorRouter, *, endpoint_prefi
                 result = JSONResponse(
                     build_http_exception_body(
                         status_code=exc.status_code,
-                        detail=str(exc.detail),
+                        detail=exc.detail,
                         path=flask_request.path,
                         method=flask_request.method,
                         headers=dict(flask_request.headers),

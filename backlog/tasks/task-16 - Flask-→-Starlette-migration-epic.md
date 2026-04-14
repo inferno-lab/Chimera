@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:06'
-updated_date: '2026-04-14 17:23'
+updated_date: '2026-04-14 18:44'
 labels:
   - refactor
 dependencies: []
@@ -69,4 +69,8 @@ Completed the first migration loop around app/utils/hotpatch.py and supporting r
 Completed first Tier 2 Starlette migration slice: government, telecom, and energy_utilities now run under app/asgi.py with ASGI test fixtures and focused passing validation (36 targeted tests). Routing shim now forwards path params, preserves static-over-dynamic precedence, and provides lenient JSON parsing for migrated handlers.
 
 Completed the second Tier 2 Starlette migration wave for security_ops, loyalty, and compliance with Flask compatibility bridging preserved for migrated domains. Verification: targeted mixed ASGI/Flask suite passed at 60 tests. Final review: .agents/reviews/review-20260414-131942.md. Test audit: .agents/reviews/test-audit-20260414-131637.md.
+
+2026-04-14: Completed the third Tier 2 Starlette migration wave by moving ics_ot and infrastructure onto the ASGI app while keeping Flask mixed-mode compatibility via register_flask_compat_routes.
+
+Wave receipt: targeted regression batch passed with 78 tests; source reviews in .agents/reviews/review-20260414-141735.md, review-20260414-142249.md, review-20260414-143018.md, and review-20260414-143446.md; test audit in .agents/reviews/test-audit-20260414-143935.md.
 <!-- SECTION:NOTES:END -->

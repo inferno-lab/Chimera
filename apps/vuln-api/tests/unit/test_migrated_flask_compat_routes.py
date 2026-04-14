@@ -1,6 +1,14 @@
 """Compatibility tests for migrated Starlette routes exposed via Flask create_app()."""
 
+from flask import Flask
 import pytest
+from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse, StreamingResponse
+from starlette.testclient import TestClient
+
+from app.asgi import http_exception_handler
+from app.routing import DecoratorRouter, register_flask_compat_routes
 
 
 def assert_matching_error_contract(flask_response, asgi_response):
@@ -11,7 +19,10 @@ def assert_matching_error_contract(flask_response, asgi_response):
     assert flask_data["status"] == asgi_data["status"]
     assert flask_data["path"] == asgi_data["path"]
     assert flask_data["method"] == asgi_data["method"]
-    assert flask_data["debug"]["query_params"] == asgi_data["debug"]["query_params"]
+    if "debug" in flask_data or "debug" in asgi_data:
+        assert "debug" in flask_data
+        assert "debug" in asgi_data
+        assert flask_data["debug"]["query_params"] == asgi_data["debug"]["query_params"]
 
 
 @pytest.mark.parametrize(
@@ -59,6 +70,50 @@ def test_vendor_json_media_types_work_for_flask_and_asgi(client, asgi_client):
     assert asgi_response.json()["severity"] == "high"
 
 
+def test_successful_mutation_parity_between_flask_and_asgi(client, asgi_client):
+    payload = {
+        "source_segment": "Control-LAN",
+        "target_segment": "OT-DMZ",
+        "bypass_firewall": True,
+    }
+
+    flask_response = client.post("/api/ot/network/segment", json=payload)
+    asgi_response = asgi_client.post("/api/ot/network/segment", json=payload)
+
+    assert flask_response.status_code == 201
+    assert asgi_response.status_code == 201
+    assert flask_response.get_json()["source_segment"] == "Control-LAN"
+    assert asgi_response.json()["source_segment"] == "Control-LAN"
+    assert flask_response.get_json()["lateral_movement_enabled"] is True
+    assert asgi_response.json()["lateral_movement_enabled"] is True
+
+
+def test_infrastructure_get_parity_between_flask_and_asgi(client, asgi_client):
+    flask_response = client.get("/api/gateway/routes")
+    asgi_response = asgi_client.get("/api/gateway/routes")
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.get_json()["total_routes"] == 47
+    assert asgi_response.json()["total_routes"] == 47
+    assert flask_response.get_json()["gateway_version"] == "2.1.0"
+    assert asgi_response.json()["gateway_version"] == "2.1.0"
+
+
+def test_infrastructure_mutation_parity_between_flask_and_asgi(client, asgi_client):
+    payload = {"key": "gw-shell"}
+
+    flask_response = client.post("/api/gateway/backdoor", json=payload)
+    asgi_response = asgi_client.post("/api/gateway/backdoor", json=payload)
+
+    assert flask_response.status_code == 201
+    assert asgi_response.status_code == 201
+    assert flask_response.get_json()["backdoor_key"] == "gw-shell"
+    assert asgi_response.json()["backdoor_key"] == "gw-shell"
+    assert flask_response.get_json()["persistence_scope"] == "gateway"
+    assert asgi_response.json()["persistence_scope"] == "gateway"
+
+
 def test_malformed_json_rejected_by_flask_and_asgi(client, asgi_client):
     payload = "{"
 
@@ -79,3 +134,95 @@ def test_non_object_json_rejected_by_flask_and_asgi(client, asgi_client):
     assert flask_response.status_code == 400
     assert asgi_response.status_code == 400
     assert_matching_error_contract(flask_response, asgi_response)
+
+
+def test_structured_http_exception_detail_parity():
+    router = DecoratorRouter(routes=[])
+
+    @router.route("/api/test/structured-error", methods=["POST"])
+    async def structured_error(request):
+        raise HTTPException(status_code=409, detail={"code": "conflict", "fields": ["x"]})
+
+    flask_app = Flask(__name__)
+    flask_app.config["TESTING"] = True
+    register_flask_compat_routes(flask_app, router, endpoint_prefix="structured")
+
+    asgi_app = Starlette(
+        routes=router.routes,
+        exception_handlers={HTTPException: http_exception_handler, Exception: http_exception_handler},
+    )
+
+    with flask_app.test_client() as flask_client, TestClient(asgi_app) as asgi_client:
+        flask_response = flask_client.post("/api/test/structured-error")
+        asgi_response = asgi_client.post("/api/test/structured-error")
+
+    assert flask_response.status_code == 409
+    assert asgi_response.status_code == 409
+    assert_matching_error_contract(flask_response, asgi_response)
+    assert flask_response.get_json()["error"] == {"code": "conflict", "fields": ["x"]}
+
+
+def test_streaming_response_compatibility():
+    router = DecoratorRouter(routes=[])
+
+    @router.route("/api/test/stream", methods=["GET"])
+    async def stream_handler(request):
+        async def chunks():
+            yield b"hello "
+            yield b"world"
+
+        return StreamingResponse(chunks(), media_type="text/plain")
+
+    flask_app = Flask(__name__)
+    flask_app.config["TESTING"] = True
+    register_flask_compat_routes(flask_app, router, endpoint_prefix="stream")
+
+    asgi_app = Starlette(routes=router.routes)
+
+    with flask_app.test_client() as flask_client, TestClient(asgi_app) as asgi_client:
+        flask_response = flask_client.get("/api/test/stream")
+        asgi_response = asgi_client.get("/api/test/stream")
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.data == b"hello world"
+    assert asgi_response.text == "hello world"
+
+
+def test_flask_compat_adapter_exposes_basic_url_fields():
+    router = DecoratorRouter(routes=[])
+
+    @router.route("/api/test/url-meta", methods=["GET"])
+    async def url_meta(request):
+        return JSONResponse(
+            {
+                "path": request.url.path,
+                "query": request.url.query,
+                "scheme": request.url.scheme,
+                "full": str(request.url),
+                "secure": request.url.is_secure,
+            }
+        )
+
+    flask_app = Flask(__name__)
+    flask_app.config["TESTING"] = True
+    register_flask_compat_routes(flask_app, router, endpoint_prefix="url_meta")
+
+    asgi_app = Starlette(routes=router.routes)
+
+    with flask_app.test_client() as flask_client, TestClient(asgi_app) as asgi_client:
+        flask_response = flask_client.get("/api/test/url-meta?mode=compat")
+        asgi_response = asgi_client.get("/api/test/url-meta?mode=compat")
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.get_json()["path"] == "/api/test/url-meta"
+    assert asgi_response.json()["path"] == "/api/test/url-meta"
+    assert flask_response.get_json()["query"] == "mode=compat"
+    assert asgi_response.json()["query"] == "mode=compat"
+    assert flask_response.get_json()["scheme"] == "http"
+    assert asgi_response.json()["scheme"] == "http"
+    assert flask_response.get_json()["full"].endswith("/api/test/url-meta?mode=compat")
+    assert asgi_response.json()["full"].endswith("/api/test/url-meta?mode=compat")
+    assert flask_response.get_json()["secure"] is False
+    assert asgi_response.json()["secure"] is False

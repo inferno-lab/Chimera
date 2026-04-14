@@ -1,9 +1,8 @@
 """
 Ics Ot blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-ics_ot_bp = Blueprint('ics_ot', __name__)
+ics_ot_router = Router(routes=[])
 
 from . import routes

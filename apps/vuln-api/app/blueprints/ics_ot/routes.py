@@ -1,21 +1,22 @@
 """
 Routes for ics ot endpoints.
 """
-
-from flask import request, jsonify, render_template_string, session
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from datetime import datetime, timedelta
 import uuid
 import random
 import json
 import time
 
-from . import ics_ot_bp
+from . import ics_ot_router
 from app.models import *
+from app.routing import get_json_or_default
 
-@ics_ot_bp.route('/api/ics/scada/systems')
-def ics_scada_systems():
+@ics_ot_router.route('/api/ics/scada/systems')
+async def ics_scada_systems(request: Request):
     """SCADA systems inventory - reconnaissance target"""
-    return jsonify({
+    return JSONResponse({
         'scada_systems': [
             {
                 'system_id': 'SCADA-001',
@@ -58,20 +59,29 @@ def ics_scada_systems():
     })
 
 
-@ics_ot_bp.route('/api/plc/commands/send', methods=['POST'])
-def plc_commands_send():
+@ics_ot_router.route('/api/plc/commands/send', methods=['POST'])
+async def plc_commands_send(request: Request):
     """Send commands to PLC - critical control manipulation"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     plc_id = data.get('plc_id', '')
     command = data.get('command', '')
     register = data.get('register', '')
     value = data.get('value', 0)
+    return JSONResponse({
+        'plc_id': plc_id,
+        'command': command,
+        'register': register,
+        'value': value,
+        'command_accepted': True,
+        'safety_interlocks_bypassed': True,
+        'execution_mode': 'unsafeguarded'
+    }, status_code=201)
 
 
-@ics_ot_bp.route('/api/ot/devices/inventory')
-def ot_devices_inventory():
+@ics_ot_router.route('/api/ot/devices/inventory')
+async def ot_devices_inventory(request: Request):
     """OT devices inventory - attack surface mapping"""
-    return jsonify({
+    return JSONResponse({
         'devices': [
             {
                 'device_id': 'PLC-101',
@@ -131,30 +141,46 @@ def ot_devices_inventory():
     })
 
 
-@ics_ot_bp.route('/api/ics/setpoints/modify', methods=['PUT'])
-def ics_setpoints_modify():
+@ics_ot_router.route('/api/ics/setpoints/modify', methods=['PUT'])
+async def ics_setpoints_modify(request: Request):
     """Modify industrial process setpoints - sabotage vector"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     controller_id = data.get('controller_id', '')
     parameter = data.get('parameter', '')
     new_value = data.get('new_value', 0)
     override_safety = data.get('override_safety', False)
+    return JSONResponse({
+        'controller_id': controller_id,
+        'parameter': parameter,
+        'new_value': new_value,
+        'override_safety': override_safety,
+        'setpoint_updated': True,
+        'process_integrity': 'compromised'
+    })
 
 
-@ics_ot_bp.route('/api/ot/protocols/modbus', methods=['POST'])
-def ot_protocols_modbus():
+@ics_ot_router.route('/api/ot/protocols/modbus', methods=['POST'])
+async def ot_protocols_modbus(request: Request):
     """Modbus protocol operations - industrial protocol exploitation"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     function_code = data.get('function_code', 3)
     slave_id = data.get('slave_id', 1)
     register_address = data.get('register_address', 40001)
     quantity = data.get('quantity', 10)
+    return JSONResponse({
+        'function_code': function_code,
+        'slave_id': slave_id,
+        'register_address': register_address,
+        'quantity': quantity,
+        'operation_completed': True,
+        'protocol_security': 'none'
+    }, status_code=201)
 
 
-@ics_ot_bp.route('/api/ics/hmi/interfaces')
-def ics_hmi_interfaces():
+@ics_ot_router.route('/api/ics/hmi/interfaces')
+async def ics_hmi_interfaces(request: Request):
     """HMI interface discovery - operator interface targeting"""
-    return jsonify({
+    return JSONResponse({
         'hmi_interfaces': [
             {
                 'hmi_id': 'HMI-MAIN-01',
@@ -195,27 +221,40 @@ def ics_hmi_interfaces():
     })
 
 
-@ics_ot_bp.route('/api/ot/safety/bypass', methods=['POST'])
-def ot_safety_bypass():
+@ics_ot_router.route('/api/ot/safety/bypass', methods=['POST'])
+async def ot_safety_bypass(request: Request):
     """Bypass safety instrumented systems - critical safety compromise"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     sis_id = data.get('sis_id', '')
     bypass_reason = data.get('bypass_reason', '')
     duration_minutes = data.get('duration_minutes', 60)
+    return JSONResponse({
+        'sis_id': sis_id,
+        'bypass_reason': bypass_reason,
+        'duration_minutes': duration_minutes,
+        'bypass_enabled': True,
+        'operator_confirmation_required': False
+    }, status_code=201)
 
 
-@ics_ot_bp.route('/api/ics/schedules/manipulate', methods=['PUT'])
-def ics_schedules_manipulate():
+@ics_ot_router.route('/api/ics/schedules/manipulate', methods=['PUT'])
+async def ics_schedules_manipulate(request: Request):
     """Manipulate production schedules - operational disruption"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     schedule_id = data.get('schedule_id', '')
     modifications = data.get('modifications', {})
+    return JSONResponse({
+        'schedule_id': schedule_id,
+        'modifications': modifications,
+        'changes_applied': len(modifications),
+        'approval_bypassed': True
+    })
 
 
-@ics_ot_bp.route('/api/ics/controllers/status')
-def ics_controllers_status():
+@ics_ot_router.route('/api/ics/controllers/status')
+async def ics_controllers_status(request: Request):
     """Industrial controller status - operational intelligence"""
-    return jsonify({
+    return JSONResponse({
         'controllers': [
             {
                 'controller_id': 'DCS-001',
@@ -255,12 +294,18 @@ def ics_controllers_status():
     })
 
 
-@ics_ot_bp.route('/api/ot/network/segment', methods=['POST'])
-def ot_network_segment():
+@ics_ot_router.route('/api/ot/network/segment', methods=['POST'])
+async def ot_network_segment(request: Request):
     """OT network segmentation operations - lateral movement"""
-    data = request.get_json() or {}
+    data = await get_json_or_default(request)
     source_segment = data.get('source_segment', '')
     target_segment = data.get('target_segment', '')
     bypass_firewall = data.get('bypass_firewall', False)
-
+    return JSONResponse({
+        'source_segment': source_segment,
+        'target_segment': target_segment,
+        'bypass_firewall': bypass_firewall,
+        'segmentation_modified': True,
+        'lateral_movement_enabled': True
+    }, status_code=201)
 

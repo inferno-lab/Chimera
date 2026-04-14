@@ -19,7 +19,7 @@ from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 
 from app.config import init_config, app_config
-from app.routing import DecoratorRouter, build_http_exception_body
+from app.routing import build_http_exception_body, sort_routes_by_specificity
 
 
 # ---------------------------------------------------------------------------
@@ -88,16 +88,14 @@ async def http_exception_handler(request: Request, exc: Exception):
     status_code = getattr(exc, 'status_code', 500)
     detail = getattr(exc, 'detail', str(exc))
 
-    body = {
-        **build_http_exception_body(
-            status_code=status_code,
-            detail=str(detail),
-            path=str(request.url.path),
-            method=request.method,
-            headers=dict(request.headers),
-            query_params=dict(request.query_params),
-        )
-    }
+    body = build_http_exception_body(
+        status_code=status_code,
+        detail=detail,
+        path=str(request.url.path),
+        method=request.method,
+        headers=dict(request.headers),
+        query_params=dict(request.query_params),
+    )
     return JSONResponse(body, status_code=status_code)
 
 
@@ -174,6 +172,8 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.security_ops import security_ops_router
     from app.blueprints.loyalty import loyalty_router
     from app.blueprints.compliance import compliance_router
+    from app.blueprints.ics_ot import ics_ot_router
+    from app.blueprints.infrastructure import infrastructure_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
@@ -189,13 +189,16 @@ def create_app(config: dict | None = None) -> Starlette:
         *security_ops_router.routes,
         *loyalty_router.routes,
         *compliance_router.routes,
+        *ics_ot_router.routes,
+        *infrastructure_router.routes,
     ]
-    routes.sort(key=DecoratorRouter._route_sort_key)
 
     # SPA static files
     web_dist_dir = os.path.join(os.path.dirname(__file__), 'web_dist')
     if os.path.isdir(web_dist_dir):
         routes.append(Mount('/assets', app=StaticFiles(directory=web_dist_dir), name='static'))
+    # Keep precedence stable in both API-only and built-frontend environments.
+    sort_routes_by_specificity(routes)
 
     middleware = [
         Middleware(
