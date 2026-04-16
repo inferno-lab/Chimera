@@ -1,5 +1,5 @@
-from flask import Blueprint
+from app.routing import DecoratorRouter as Router
 
-education_bp = Blueprint('education', __name__)
+education_router = Router(routes=[])
 
 from . import routes

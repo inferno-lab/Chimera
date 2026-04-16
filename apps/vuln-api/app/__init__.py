@@ -171,26 +171,26 @@ def create_app(config=None):
     register_error_handlers(app)
 
     # Import and register blueprints.
-    # NOTE: main, recorder, diagnostics, throughput, government, telecom,
-    # energy_utilities, security_ops, loyalty, compliance, ics_ot, and
-    # infrastructure have been
+    # NOTE: main, recorder, diagnostics, throughput, admin, government,
+    # telecom, energy_utilities, security_ops, loyalty, compliance, ics_ot,
+    # infrastructure, genai, education, checkout, and mobile have been
     # migrated to Starlette (see app/asgi.py).
     # During the transition, migrated API domains listed below are mirrored
     # back into Flask via register_flask_compat_routes so app.py/local WSGI
     # callers keep working while the cutover remains in mixed mode.
     from app.blueprints.auth import auth_bp
     from app.blueprints.banking import banking_bp
-    from app.blueprints.mobile import mobile_bp
+    from app.blueprints.mobile import mobile_router
     from app.blueprints.healthcare import healthcare_bp
     from app.blueprints.ecommerce import ecommerce_bp
-    from app.blueprints.checkout import checkout_bp
+    from app.blueprints.checkout import checkout_router
     from app.blueprints.payments import payments_bp
     from app.blueprints.insurance import insurance_bp
     from app.blueprints.integrations import integrations_bp
     from app.blueprints.saas import saas_bp
     from app.blueprints.admin import admin_router
     from app.blueprints.testing import testing_bp
-    from app.blueprints.education import education_bp
+    from app.blueprints.education import education_router
     from app.blueprints.attack_sim import attack_sim_router
     from app.blueprints.government import government_router
     from app.blueprints.telecom import telecom_router
@@ -210,16 +210,13 @@ def create_app(config=None):
     # Register remaining Flask blueprints (Tier 1 + current Tier 2 waves now live on Starlette)
     app.register_blueprint(auth_bp)
     app.register_blueprint(banking_bp)
-    app.register_blueprint(mobile_bp)
     app.register_blueprint(healthcare_bp)
     app.register_blueprint(ecommerce_bp)
-    app.register_blueprint(checkout_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(insurance_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(saas_bp)
     app.register_blueprint(testing_bp)
-    app.register_blueprint(education_bp)
 
     register_flask_compat_routes(app, admin_router, endpoint_prefix='admin')
     register_flask_compat_routes(app, attack_sim_router, endpoint_prefix='attack_sim')
@@ -232,6 +229,9 @@ def create_app(config=None):
     register_flask_compat_routes(app, ics_ot_router, endpoint_prefix='ics_ot')
     register_flask_compat_routes(app, infrastructure_router, endpoint_prefix='infrastructure')
     register_flask_compat_routes(app, genai_router, endpoint_prefix='genai')
+    register_flask_compat_routes(app, education_router, endpoint_prefix='education')
+    register_flask_compat_routes(app, checkout_router, endpoint_prefix='checkout')
+    register_flask_compat_routes(app, mobile_router, endpoint_prefix='mobile')
 
     # Healthz + home — previously served by main_bp (now Starlette-only).
     # Provide minimal Flask equivalents so Docker healthchecks and SPA tests work.

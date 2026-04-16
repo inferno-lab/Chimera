@@ -39,6 +39,8 @@ def assert_matching_error_contract(flask_response, asgi_response):
         ("/api/compliance/status", 200, "audit_ready", True),
         ("/api/v1/genai/models/config", 200, "active_model", "gpt-4-turbo"),
         ("/api/recon/advanced", 200, "tech_stack", ["kubernetes", "istio", "postgres", "redis"]),
+        ("/api/mobile/v2/config/app-settings", 200, "app_version", "4.2.1"),
+        ("/api/checkout/methods", 200, "default_method", "visa"),
     ],
 )
 def test_migrated_routes_remain_reachable_via_flask_compat(client, path, expected_status, field, expected_value):
@@ -166,6 +168,67 @@ def test_genai_graphql_batch_parity_between_flask_and_asgi(client, asgi_client):
     assert len(asgi_response.json()) == 2
     assert flask_response.get_json()[0]["data"]["systemInfo"]["version"] == "2.1.0"
     assert asgi_response.json()[0]["data"]["systemInfo"]["version"] == "2.1.0"
+
+
+def test_checkout_session_flow_parity_between_flask_and_asgi(client, asgi_client):
+    shipping_payload = {"line1": "100 Demo Way", "city": "New York", "state": "NY"}
+
+    flask_shipping = client.put("/api/shipping/address", json=shipping_payload)
+    asgi_shipping = asgi_client.put("/api/shipping/address", json=shipping_payload)
+
+    assert flask_shipping.status_code == 200
+    assert asgi_shipping.status_code == 200
+    assert flask_shipping.get_json()["shipping_address"]["city"] == "New York"
+    assert asgi_shipping.json()["shipping_address"]["city"] == "New York"
+
+    flask_checkout = client.post("/api/checkout/process", json={})
+    asgi_checkout = asgi_client.post("/api/checkout/process", json={})
+
+    assert flask_checkout.status_code == 200
+    assert asgi_checkout.status_code == 200
+    assert flask_checkout.get_json()["item_count"] == 1
+    assert asgi_checkout.json()["item_count"] == 1
+    assert flask_checkout.get_json()["shipping_address"]["line1"] == "100 Demo Way"
+    assert asgi_checkout.json()["shipping_address"]["line1"] == "100 Demo Way"
+
+
+def test_mobile_limits_override_session_parity_between_flask_and_asgi(client, asgi_client, set_asgi_session):
+    with client.session_transaction() as session:
+        session["user_id"] = "flask-mobile-user"
+    set_asgi_session(asgi_client, {"user_id": "asgi-mobile-user"})
+
+    payload = {"daily_limit": 50000, "instant_transfer_limit": 20000}
+    flask_response = client.put("/api/mobile/v2/accounts/limits/override", json=payload)
+    asgi_response = asgi_client.put("/api/mobile/v2/accounts/limits/override", json=payload)
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert flask_response.get_json()["user_id"] == "flask-mobile-user"
+    assert asgi_response.json()["user_id"] == "asgi-mobile-user"
+    assert flask_response.get_json()["daily_limit"] == 50000
+    assert asgi_response.json()["daily_limit"] == 50000
+
+
+def test_education_session_gate_parity_between_flask_and_asgi(client, asgi_client, set_asgi_session):
+    unauthenticated_flask = client.get("/api/v1/education/vulns")
+    unauthenticated_asgi = asgi_client.get("/api/v1/education/vulns")
+
+    assert unauthenticated_flask.status_code == 200
+    assert unauthenticated_asgi.status_code == 200
+    assert "CHM-BANK-001" in unauthenticated_flask.get_json()
+    assert "CHM-BANK-001" in unauthenticated_asgi.json()
+
+    with client.session_transaction() as session:
+        session["user_id"] = "flask-education-user"
+    set_asgi_session(asgi_client, {"user_id": "asgi-education-user"})
+
+    flask_response = client.get("/api/v1/education/vulns?portal=banking")
+    asgi_response = asgi_client.get("/api/v1/education/vulns?portal=banking")
+
+    assert flask_response.status_code == 200
+    assert asgi_response.status_code == 200
+    assert "CHM-BANK-001" in flask_response.get_json()
+    assert "CHM-BANK-001" in asgi_response.json()
 
 
 def test_attack_sim_coordination_parity_between_flask_and_asgi(client, asgi_client):

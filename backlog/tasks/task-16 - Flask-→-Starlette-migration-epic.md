@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-04-12 04:06'
-updated_date: '2026-04-15 00:16'
+updated_date: '2026-04-16 19:25'
 labels:
   - refactor
 dependencies: []
@@ -87,4 +87,6 @@ Wave receipt: targeted regression batch passed with 97 tests in 6.46s; source re
 Admin/Tier 2 closure receipts: focused admin migration tests passed at 114 tests; full vuln-api unit suite passed at 715 passed / 1 skipped / 133 warnings; uvicorn smoke checks on http://127.0.0.1:8899 returned expected 200/201 responses across all 11 Tier 2 blueprints.
 
 Latest source review artifact: .agents/reviews/review-20260414-200618.md (PASS WITH ISSUES, no P0/P1). Latest test audit artifact: .agents/reviews/test-audit-20260414-200859.md; follow-on findings are broader coverage debt and ASGI middleware checks, not blockers for Tier 2 completion.
+
+2026-04-16: TASK-16.2 is now in progress after migrating education, checkout, and mobile to Starlette. The repo remains mixed-mode, but 18 blueprints are now on Starlette and create_app() mirrors the new routers back into Flask for compatibility.
 <!-- SECTION:NOTES:END -->

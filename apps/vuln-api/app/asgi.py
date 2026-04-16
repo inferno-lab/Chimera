@@ -161,7 +161,7 @@ def create_app(config: dict | None = None) -> Starlette:
     """
     cfg = init_config(config)
 
-    # Ported blueprint routers (Tier 1 + Tier 2 waves)
+    # Ported blueprint routers (Tier 1, Tier 2, and current Tier 3 wave)
     from app.blueprints.main import main_router
     from app.blueprints.recorder import recorder_router
     from app.blueprints.diagnostics import diagnostics_router
@@ -177,6 +177,9 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.ics_ot import ics_ot_router
     from app.blueprints.infrastructure import infrastructure_router
     from app.blueprints.genai import genai_router
+    from app.blueprints.education import education_router
+    from app.blueprints.checkout import checkout_router
+    from app.blueprints.mobile import mobile_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
@@ -197,6 +200,9 @@ def create_app(config: dict | None = None) -> Starlette:
         *ics_ot_router.routes,
         *infrastructure_router.routes,
         *genai_router.routes,
+        *education_router.routes,
+        *checkout_router.routes,
+        *mobile_router.routes,
     ]
 
     # SPA static files
@@ -213,6 +219,7 @@ def create_app(config: dict | None = None) -> Starlette:
             allow_methods=['*'],
             allow_headers=['*'],
         ),
+        # Session-dependent migrated routers rely on request.session parity.
         Middleware(
             SessionMiddleware,
             secret_key=cfg.secret_key,

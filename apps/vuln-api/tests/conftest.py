@@ -2,9 +2,12 @@
 Pytest configuration and shared fixtures for api-demo tests.
 """
 
+from base64 import b64encode
+import json
 import sys
 from pathlib import Path
 import pytest
+from itsdangerous import TimestampSigner
 from starlette.testclient import TestClient
 
 # Add app directory to Python path
@@ -77,9 +80,29 @@ def asgi_app():
 
 @pytest.fixture
 def asgi_client(asgi_app):
-    """Create ASGI test client for migrated Starlette routes."""
-    with TestClient(asgi_app) as client:
+    """Create ASGI test client that mirrors localhost mixed-mode behavior."""
+    with TestClient(asgi_app, client=("127.0.0.1", 50000)) as client:
         yield client
+
+
+@pytest.fixture
+def asgi_remote_client(asgi_app):
+    """Create ASGI test client with a non-local address for auth gate coverage."""
+    with TestClient(asgi_app, client=("198.51.100.10", 50000)) as client:
+        yield client
+
+
+@pytest.fixture
+def set_asgi_session():
+    """Seed a Starlette SessionMiddleware cookie for ASGI tests."""
+    signer = TimestampSigner("chimera-demo-key-not-for-production")
+
+    def _set(client, session_data):
+        encoded = b64encode(json.dumps(session_data).encode("utf-8"))
+        cookie = signer.sign(encoded).decode("utf-8")
+        client.cookies.set("session", cookie)
+
+    return _set
 
 
 @pytest.fixture
