@@ -22,7 +22,7 @@ Comprehensive testing framework for the WAF testing application with 200+ tests 
 ### Run All Tests
 ```bash
 # From api-demo directory
-make test
+just test
 
 # Or directly with pytest
 pytest
@@ -31,7 +31,7 @@ pytest
 ### Quick Sanity Check
 ```bash
 # Run fast tests only (< 5 seconds)
-make test-quick
+just test-quick
 
 # Or use the script
 ./run_tests.sh --quick
@@ -40,7 +40,7 @@ make test-quick
 ### With Coverage Report
 ```bash
 # Generate HTML coverage report
-make test-coverage
+just test-coverage
 
 # View report
 open htmlcov/index.html
@@ -72,7 +72,7 @@ tests/
 ├── conftest.py                    # Pytest configuration
 ├── pytest.ini                     # Pytest settings
 ├── run_tests.sh                   # Test runner script
-├── Makefile                       # Test automation
+├── justfile                       # Test automation
 └── README.md                      # This file
 ```
 
@@ -252,7 +252,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run tests
-        run: make test-coverage
+        run: just test-coverage
       - name: Upload coverage
         uses: codecov/codecov-action@v2
 ```
@@ -354,13 +354,13 @@ class TestNewFeature:
 
 ```bash
 # All tests
-make test
+just test
 
 # Quick tests
-make test-quick
+just test-quick
 
 # With coverage
-make test-coverage
+just test-coverage
 
 # Specific module
 pytest tests/unit/test_auth_routes.py

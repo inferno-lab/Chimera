@@ -56,8 +56,9 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: apps/vuln-api/uv.lock
+      - uses: extractions/setup-just@v2
       - run: uv sync --extra dev --frozen
-      - run: make test-ci
+      - run: just test-ci
 
   test-vuln-api-hp:
     name: Test vuln-api-hp (Rust)

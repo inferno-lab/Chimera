@@ -1,0 +1,122 @@
+# Justfile for api-demo WAF testing application.
+# Ported from Makefile — recipes here match the prior `make <target>` names.
+
+uv := env_var_or_default('UV', 'uv')
+
+# Default: list all recipes
+help:
+    @just --list
+
+# ── Setup ────────────────────────────────────────────────
+
+# Install dependencies
+install:
+    {{uv}} sync --extra dev --frozen
+    {{uv}} pip install -r ../tests/requirements-test.txt
+
+# ── Tests ────────────────────────────────────────────────
+
+# Run the full test suite via run_tests.sh
+test: test-all
+
+# Run complete test suite
+test-all:
+    ./run_tests.sh all
+
+# CI test target (unit tests with coverage, fail-fast)
+test-ci:
+    DEMO_MODE=full {{uv}} run pytest tests/unit -v --cov=app --cov-report=term-missing -x --maxfail=5
+
+# Unit tests with coverage (+ HTML report)
+test-unit:
+    DEMO_MODE=full {{uv}} run pytest tests/unit -v --cov=app --cov-report=term-missing --cov-report=html
+
+# Integration tests
+test-integration:
+    DEMO_MODE=full {{uv}} run pytest tests/integration -v -m integration
+
+# Vulnerability tests
+test-vulnerability:
+    DEMO_MODE=full {{uv}} run pytest tests -v -m vulnerability
+
+# Smoke tests
+test-smoke:
+    {{uv}} run pytest tests/smoke -v -m smoke --tb=short
+
+# Coverage check (fails <80%)
+test-coverage:
+    {{uv}} run pytest tests/unit --cov=app --cov-report=term --cov-fail-under=80
+
+# Run tests in parallel
+test-parallel:
+    {{uv}} run pytest tests -n auto -v
+
+# Generate HTML test report at reports/test_report.html
+test-report:
+    mkdir -p reports
+    {{uv}} run pytest tests --html=reports/test_report.html --self-contained-html
+    @echo "Report generated: reports/test_report.html"
+
+# Run a single test file (usage: just test-file tests/unit/test_auth_routes.py)
+test-file FILE:
+    pytest {{FILE}} -v
+
+# Quick test for CI/CD
+test-quick:
+    pytest tests/unit -v --tb=short -x --maxfail=5
+
+# Run tests across DEMO_MODE=strict and DEMO_MODE=full
+test-modes:
+    @echo "DEMO_MODE=strict"
+    DEMO_MODE=strict pytest tests/unit -v -k "not vulnerability"
+    @echo "DEMO_MODE=full"
+    DEMO_MODE=full pytest tests/unit -v -k "vulnerability"
+
+# ── Run ──────────────────────────────────────────────────
+
+# Start the app (defaults to vulnerable mode)
+run: run-vulnerable
+
+# Run in vulnerable mode (DEMO_MODE=full)
+run-vulnerable:
+    @echo "⚠️  Starting in VULNERABLE mode (DEMO_MODE=full)"
+    @echo "    This mode has intentional security vulnerabilities for testing!"
+    DEMO_MODE=full FLASK_ENV=development {{uv}} run python -m gunicorn 'app:create_app()' --config gunicorn.conf.py
+
+# Run in secure mode (DEMO_MODE=strict)
+run-secure:
+    @echo "Starting in SECURE mode (DEMO_MODE=strict)"
+    DEMO_MODE=strict FLASK_ENV=production {{uv}} run python -m gunicorn 'app:create_app()' --config gunicorn.conf.py
+
+# ── Quality ──────────────────────────────────────────────
+
+# Run linters (flake8 + pylint)
+lint:
+    -flake8 app/ tests/ --max-line-length=120 --ignore=E501,W503
+    -pylint app/ tests/ --max-line-length=120 --disable=C0114,C0115,C0116
+
+# Format code with black
+format:
+    black app/ tests/ --line-length=120
+
+# ── Docs ─────────────────────────────────────────────────
+
+# Drift check between live routes and docs/openapi.yaml (non-zero on drift)
+docs-check:
+    {{uv}} run python scripts/check_openapi_drift.py
+
+# Prune stale (path, method) pairs from docs/openapi.yaml
+docs-prune:
+    {{uv}} run python scripts/prune_openapi_drift.py
+
+# ── Cleanup ──────────────────────────────────────────────
+
+# Remove generated files
+clean:
+    -find . -type d -name "__pycache__" -exec rm -rf {} +
+    -find . -type f -name "*.pyc" -delete
+    -find . -type f -name "*.pyo" -delete
+    -find . -type f -name ".coverage" -delete
+    -rm -rf htmlcov/
+    -rm -rf reports/
+    -rm -rf .pytest_cache/

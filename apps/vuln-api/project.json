@@ -8,14 +8,14 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/vuln-api",
-        "command": "make test-ci"
+        "command": "just test-ci"
       }
     },
     "start": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/vuln-api",
-        "command": "PORT=8880 make run"
+        "command": "PORT=8880 just run"
       }
     },
     "stop": {

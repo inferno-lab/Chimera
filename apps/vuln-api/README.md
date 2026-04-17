@@ -39,13 +39,13 @@ docker run -p 8080:80 demo-api
 ### Running Tests
 ```bash
 # All tests (runs the same uv environment used locally/Docker)
-make test
+just test
 
 # Quick tests
-make test-quick
+just test-quick
 
 # With coverage
-make test-coverage
+just test-coverage
 ```
 
 ### Database Mode (Opt-In)
@@ -127,7 +127,7 @@ api-demo/
 ├── app.py              # Main application
 ├── requirements.txt    # Dependencies
 ├── Dockerfile         # Container definition
-└── Makefile          # Build automation
+└── justfile          # Build automation
 ```
 
 ## 🔒 Security Warning

@@ -71,7 +71,7 @@ api-demo/
 ├── pyproject.toml                # Dependencies
 ├── uv.lock                       # Locked dependency graph
 ├── Dockerfile                     # Container definition
-└── Makefile                       # Build automation
+└── justfile                       # Build automation
 ```
 
 ### Blueprint Organization
@@ -142,13 +142,13 @@ docker run -p 8080:80 demo-api
 ### Running Tests
 ```bash
 # All tests
-make test
+just test
 
 # Quick tests only
-make test-quick
+just test-quick
 
 # With coverage
-make test-coverage
+just test-coverage
 
 # Specific domain
 pytest tests/unit/test_auth_routes.py -v
@@ -665,34 +665,34 @@ tests/
 
 ```bash
 # Full suite
-make test
+just test
 
 # Unit tests (with coverage)
-make test-unit
+just test-unit
 
 # Quick tests
-make test-quick
+just test-quick
 
 # Integration tests
-make test-integration
+just test-integration
 
 # Vulnerability & smoke tests
-make test-vulnerability
-make test-smoke
+just test-vulnerability
+just test-smoke
 
 # Coverage gate (80%)
-make test-coverage
+just test-coverage
 
 # HTML report
-make test-report
+just test-report
 
 # Specific test file
-make test-file FILE=tests/unit/test_auth_routes.py
+just test-file tests/unit/test_auth_routes.py
 ```
 
 ### Test Coverage
 
-Coverage is enforced at 80% for unit tests. Run `make test-coverage` or `make test-unit` for current stats.
+Coverage is enforced at 80% for unit tests. Run `just test-coverage` or `just test-unit` for current stats.
 
 ## Development
 
@@ -940,7 +940,7 @@ export GUNICORN_WORKERS=2
 uv run python app.py
 
 # Run tests
-make test
+just test
 
 # Test specific vulnerability
 curl "http://localhost:8080/api/v1/auth/login" \
