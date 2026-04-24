@@ -21,10 +21,10 @@ from starlette.staticfiles import StaticFiles
 from app.config import init_config, app_config
 from app.routing import build_http_exception_body, sort_routes_by_specificity
 
-
 # ---------------------------------------------------------------------------
 # Middleware
 # ---------------------------------------------------------------------------
+
 
 class CSPMiddleware:
     """Inject Content-Security-Policy header based on request path."""
@@ -33,13 +33,13 @@ class CSPMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http':
+        if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        path = scope.get('path', '')
+        path = scope.get("path", "")
 
-        if path in {'/swagger', '/openapi.yaml'}:
+        if path in {"/swagger", "/openapi.yaml"}:
             csp = (
                 "default-src 'self' https://unpkg.com; "
                 "style-src 'self' https://unpkg.com 'unsafe-inline'; "
@@ -48,7 +48,7 @@ class CSPMiddleware:
                 "font-src 'self' https://unpkg.com; "
                 "connect-src 'self'"
             )
-        elif not path.startswith(('/api/', '/apidocs')):
+        elif not path.startswith(("/api/", "/apidocs")):
             csp = (
                 "default-src 'self'; "
                 "style-src 'self' 'unsafe-inline'; "
@@ -68,10 +68,10 @@ class CSPMiddleware:
             )
 
         async def send_with_csp(message):
-            if message['type'] == 'http.response.start':
-                headers = list(message.get('headers', []))
-                headers.append((b'content-security-policy', csp.encode()))
-                message = {**message, 'headers': headers}
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"content-security-policy", csp.encode()))
+                message = {**message, "headers": headers}
             await send(message)
 
         await self.app(scope, receive, send_with_csp)
@@ -81,12 +81,13 @@ class CSPMiddleware:
 # Error handlers
 # ---------------------------------------------------------------------------
 
+
 async def http_exception_handler(request: Request, exc: Exception):
     """Catch-all error handler that mirrors Flask DemoErrorHandler behavior."""
     from starlette.exceptions import HTTPException
 
-    status_code = getattr(exc, 'status_code', 500)
-    detail = getattr(exc, 'detail', str(exc))
+    status_code = getattr(exc, "status_code", 500)
+    detail = getattr(exc, "detail", str(exc))
 
     body = build_http_exception_body(
         status_code=status_code,
@@ -103,16 +104,17 @@ async def http_exception_handler(request: Request, exc: Exception):
 # Routes
 # ---------------------------------------------------------------------------
 
+
 async def healthz(request: Request):
-    return JSONResponse({'status': 'healthy'})
+    return JSONResponse({"status": "healthy"})
 
 
 async def openapi_spec(request: Request):
-    docs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs'))
-    spec_path = os.path.join(docs_dir, 'openapi.yaml')
+    docs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
+    spec_path = os.path.join(docs_dir, "openapi.yaml")
     if os.path.isfile(spec_path):
-        return FileResponse(spec_path, media_type='application/x-yaml')
-    return JSONResponse({'error': 'openapi.yaml not found'}, status_code=404)
+        return FileResponse(spec_path, media_type="application/x-yaml")
+    return JSONResponse({"error": "openapi.yaml not found"}, status_code=404)
 
 
 SWAGGER_HTML = """<!doctype html>
@@ -153,6 +155,7 @@ async def swagger_ui(request: Request):
 # Application factory
 # ---------------------------------------------------------------------------
 
+
 def create_app(config: dict | None = None) -> Starlette:
     """
     Create and configure the Starlette application.
@@ -161,7 +164,7 @@ def create_app(config: dict | None = None) -> Starlette:
     """
     cfg = init_config(config)
 
-    # Ported blueprint routers (Tier 1, Tier 2, and current Tier 3 wave)
+    # Ported blueprint routers (Tier 1, Tier 2, and the full Tier 3 wave)
     from app.blueprints.main import main_router
     from app.blueprints.recorder import recorder_router
     from app.blueprints.diagnostics import diagnostics_router
@@ -180,11 +183,13 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.education import education_router
     from app.blueprints.checkout import checkout_router
     from app.blueprints.mobile import mobile_router
+    from app.blueprints.payments import payments_router
+    from app.blueprints.saas import saas_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
-        Route('/openapi.yaml', openapi_spec),
-        Route('/swagger', swagger_ui),
+        Route("/openapi.yaml", openapi_spec),
+        Route("/swagger", swagger_ui),
         *main_router.routes,
         *recorder_router.routes,
         *diagnostics_router.routes,
@@ -203,21 +208,25 @@ def create_app(config: dict | None = None) -> Starlette:
         *education_router.routes,
         *checkout_router.routes,
         *mobile_router.routes,
+        *payments_router.routes,
+        *saas_router.routes,
     ]
 
     # SPA static files
-    web_dist_dir = os.path.join(os.path.dirname(__file__), 'web_dist')
+    web_dist_dir = os.path.join(os.path.dirname(__file__), "web_dist")
     if os.path.isdir(web_dist_dir):
-        routes.append(Mount('/assets', app=StaticFiles(directory=web_dist_dir), name='static'))
+        routes.append(
+            Mount("/assets", app=StaticFiles(directory=web_dist_dir), name="static")
+        )
     # Keep precedence stable in both API-only and built-frontend environments.
     sort_routes_by_specificity(routes)
 
     middleware = [
         Middleware(
             CORSMiddleware,
-            allow_origins=['*'],
-            allow_methods=['*'],
-            allow_headers=['*'],
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
         ),
         # Session-dependent migrated routers rely on request.session parity.
         Middleware(
@@ -228,6 +237,7 @@ def create_app(config: dict | None = None) -> Starlette:
     ]
 
     from starlette.exceptions import HTTPException
+
     exception_handlers = {
         HTTPException: http_exception_handler,
         Exception: http_exception_handler,
@@ -242,6 +252,7 @@ def create_app(config: dict | None = None) -> Starlette:
 
     # Initialize demo data (same as Flask factory)
     from app.utils import init_demo_data
+
     init_demo_data()
 
     return app

@@ -1,9 +1,8 @@
 """
 Payments blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-payments_bp = Blueprint('payments', __name__)
+payments_router = Router(routes=[])
 
 from . import routes
