@@ -217,6 +217,9 @@ def create_app(config=None):
     from app.blueprints.ics_ot import ics_ot_router
     from app.blueprints.infrastructure import infrastructure_router
     from app.blueprints.genai import genai_router
+    from app.blueprints.diagnostics import diagnostics_router
+    from app.blueprints.throughput import throughput_router
+    from app.blueprints.recorder import recorder_router
     from app.middleware.traffic_recorder import TrafficRecorder
     from app.routing import register_flask_compat_routes
 
@@ -254,6 +257,9 @@ def create_app(config=None):
     register_flask_compat_routes(app, mobile_router, endpoint_prefix="mobile")
     register_flask_compat_routes(app, payments_router, endpoint_prefix="payments")
     register_flask_compat_routes(app, saas_router, endpoint_prefix="saas")
+    register_flask_compat_routes(app, diagnostics_router, endpoint_prefix="diagnostics")
+    register_flask_compat_routes(app, throughput_router, endpoint_prefix="throughput")
+    register_flask_compat_routes(app, recorder_router, endpoint_prefix="recorder")
 
     # Healthz + home — previously served by main_bp (now Starlette-only).
     # Provide minimal Flask equivalents so Docker healthchecks and SPA tests work.
