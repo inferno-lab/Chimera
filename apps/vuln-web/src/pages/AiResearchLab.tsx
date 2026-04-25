@@ -129,7 +129,7 @@ export const AiResearchLab: React.FC = () => {
             <div className="space-y-6">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative">
                 <div className="absolute top-6 right-6">
-                  <HintChip label="Prompt Injection" onClick={() => setShowInfo(true)} />
+                  <HintChip label="Prompt Injection" onClick={() => setShowInfo(true)} className="hint-chip-prompt-injection" data-tour="hint-prompt-injection" />
                 </div>
                 <h2 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <Code className="w-5 h-5 text-blue-500" />

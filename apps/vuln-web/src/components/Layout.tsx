@@ -213,6 +213,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <div className="p-2">
                     <button
                       onClick={() => dispatchToolToggle(CHIMERA_EVENTS.TOGGLE_RED_TEAM_CONSOLE)}
+                      data-tour="red-team-console-hint"
                       className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left text-slate-200 transition-colors hover:bg-slate-800"
                     >
                       <Terminal className="mt-0.5 h-4 w-4 text-red-400" />

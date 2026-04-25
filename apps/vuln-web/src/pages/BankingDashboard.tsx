@@ -121,7 +121,7 @@ export const BankingDashboard: React.FC = () => {
                 <CreditCard className="w-5 h-5 text-blue-500" />
                 Your Accounts
               </h2>
-              <HintChip label="BOLA / IDOR" onClick={() => setShowInfo(true)} />
+              <HintChip label="BOLA / IDOR" onClick={() => setShowInfo(true)} className="hint-chip-bola" data-tour="hint-bola" />
             </div>
             
             <div className="divide-y divide-slate-100">
