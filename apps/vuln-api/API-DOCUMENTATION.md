@@ -14,10 +14,10 @@
 
 ## Overview
 
-The Chimera is a Python Flask application serving as a honeypot with 456+ vulnerable endpoints designed to test and demonstrate  WAF capabilities. It simulates real-world applications with intentional security flaws for testing purposes.
+The Chimera is a Python Flask application serving as a honeypot with 469 vulnerable endpoints designed to test and demonstrate  WAF capabilities. It simulates real-world applications with intentional security flaws for testing purposes.
 
 ### Key Features
-- **456+ Vulnerable Endpoints** across 25+ blueprints and domains
+- **469 Vulnerable Endpoints** across 28 blueprints and domains (verified via `just docs-drift`)
 - **Intentional Security Flaws** for WAF testing
 - **Thread-Safe Data Layer** with validation bypass
 - **Comprehensive Test Suite** with unit and security-focused coverage

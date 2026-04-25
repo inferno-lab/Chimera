@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Endpoints Catalog
-description: Complete reference of 240+ API endpoints across 18 industry scenarios for WAF testing
+description: Complete reference of 469 API endpoints across 18 industry scenarios for WAF testing
 permalink: /endpoints-catalog/
 ---
 
@@ -12,7 +12,7 @@ The list was compiled based on rules and attack scenario requests.
 
 
 ## Quick Stats
-- **Total Endpoints**: 240+ unique endpoints
+- **Total Endpoints**: 469 unique endpoints (verified against the live route table via `just docs-drift`)
 - **Industries Covered**: Banking, Insurance, E-commerce, Healthcare, Cloud-Native, ICS/OT
 - **Attack Categories**: 20+ different attack vector types
 - **Scenarios**: 20+ comprehensive attack scenarios (including Blue Team defensive operations)
@@ -583,7 +583,7 @@ Each endpoint should support:
 
 ## Conclusion
 
-This comprehensive endpoint catalog provides **240+ unique API endpoints** across **20+ industry-specific attack scenarios**, including both offensive and defensive operations. The endpoints are designed to:
+This comprehensive endpoint catalog provides **469 unique API endpoints** across **20+ industry-specific attack scenarios**, including both offensive and defensive operations. The endpoints are designed to:
 
 1. **Demonstrate Real Attack Patterns**: Each endpoint represents actual attack vectors seen in banking, insurance, e-commerce, cloud, and industrial environments
 2. **Enable Comprehensive WAF Testing**: Cover all major attack categories, techniques, and defensive responses
