@@ -1869,6 +1869,20 @@ paths:
       responses:
         '200':
           description: OK
+    post:
+      tags: [Database Vuln]
+      summary: "Search records by diagnosis (second-order SQLi, USE_DATABASE=true)"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Database mode not enabled
   /api/v1/healthcare/records/search:
     get:
       tags: [Healthcare]
@@ -5819,6 +5833,220 @@ paths:
           application/json:
             schema:
               type: object
+      responses:
+        '200':
+          description: OK
+  /api/v1/patients/search:
+    get:
+      tags: [Database Vuln]
+      summary: "Patient search by SSN (classic SQLi, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: ssn
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Database mode not enabled
+  /api/v1/auth/login-vulnerable:
+    post:
+      tags: [Database Vuln]
+      summary: "Auth bypass via SQLi (USE_DATABASE=true)"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Invalid credentials
+        '503':
+          description: Database mode not enabled
+  /api/v1/banking/accounts/search:
+    get:
+      tags: [Database Vuln]
+      summary: "Bank account search (UNION-based SQLi, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: account_number
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Database mode not enabled
+  /api/v1/insurance/policies/lookup:
+    get:
+      tags: [Database Vuln]
+      summary: "Policy lookup (blind boolean SQLi, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: policy_number
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Policy not found
+        '503':
+          description: Database mode not enabled
+  /api/v1/transactions/history:
+    get:
+      tags: [Database Vuln]
+      summary: "Transaction history (time-based blind SQLi, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: account_id
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Database mode not enabled
+  /api/v1/claims/search:
+    get:
+      tags: [Database Vuln]
+      summary: "Claims search (ORDER BY injection, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: policy_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: order_by
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Database mode not enabled
+  /api/v1/users/profile:
+    get:
+      tags: [Database Vuln]
+      summary: "User profile lookup (error-based SQLi, USE_DATABASE=true)"
+      parameters:
+        - in: query
+          name: user_id
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: User not found
+        '503':
+          description: Database mode not enabled
+  /api/v1/payments/vault/status:
+    get:
+      tags: [Payments]
+      summary: "Payments vault status (recon — leaks vault config; sets HSTS)"
+      responses:
+        '200':
+          description: OK
+          headers:
+            Strict-Transport-Security:
+              schema:
+                type: string
+  /api/v1/system/status:
+    get:
+      tags: [Infrastructure]
+      summary: "System status (auth-gated via X-Service-Key; recon when authenticated)"
+      parameters:
+        - in: header
+          name: X-Service-Key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Invalid or expired service account key
+  /api/v1/diagnostics/ping:
+    post:
+      tags: [Diagnostics]
+      summary: Diagnostic ping
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+  /api/v1/diagnostics/webhook:
+    get:
+      tags: [Diagnostics]
+      summary: "Webhook diagnostics (SSRF probe surface; accepts arbitrary url query)"
+      parameters:
+        - in: query
+          name: url
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Diagnostics]
+      summary: "Webhook diagnostics (POST variant)"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+  /api/recorder/traffic:
+    get:
+      tags: [Recorder]
+      summary: List recorded traffic
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags: [Recorder]
+      summary: Clear recorded traffic
+      responses:
+        '200':
+          description: OK
+  /api/recorder/status:
+    get:
+      tags: [Recorder]
+      summary: Recorder status
+      responses:
+        '200':
+          description: OK
+  /fast/ping:
+    get:
+      tags: [Throughput]
+      summary: Throughput ping (low-overhead)
+      responses:
+        '200':
+          description: OK
+  /fast/export:
+    get:
+      tags: [Throughput]
+      summary: Throughput export (bulk read benchmarking)
       responses:
         '200':
           description: OK

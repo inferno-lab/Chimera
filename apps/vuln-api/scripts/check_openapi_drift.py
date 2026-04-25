@@ -66,12 +66,28 @@ def load_live_routes() -> dict[tuple[str, str], str]:
     import contextlib
 
     sys.path.insert(0, str(REPO_DIR))
+
+    # Force in-memory mode regardless of caller env. The SQLAlchemy init path
+    # (app/database.py) imports symbols that no longer exist in app.models
+    # post-Starlette migration, so USE_DATABASE=true would fail at app startup.
+    # The drift checker only enumerates route declarations, so we don't need a
+    # working database — and we manually register db_vuln_bp below to cover the
+    # routes that are normally gated behind the env flag.
+    os.environ['USE_DATABASE'] = 'false'
+
     from app import create_app
 
     # create_app() in app/__init__.py prints boot messages to stdout;
     # redirect them to stderr so --json output stays machine-readable.
     with contextlib.redirect_stdout(sys.stderr):
         app = create_app()
+        # The database_vulnerable blueprint defines real, documentable routes
+        # but is conditionally registered only when USE_DATABASE=true. Register
+        # it unconditionally for drift purposes — its SQLAlchemy import is
+        # lazy (inside get_db_connection), so registration is side-effect-free.
+        if 'database_vulnerable' not in app.blueprints:
+            from app.blueprints.database_vulnerable import db_vuln_bp
+            app.register_blueprint(db_vuln_bp)
     routes: dict[tuple[str, str], str] = {}
     for rule in app.url_map.iter_rules():
         if rule.rule in IGNORED_PATHS:
