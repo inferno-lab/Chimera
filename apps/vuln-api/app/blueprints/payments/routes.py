@@ -723,3 +723,31 @@ async def merchant_limits_override(request: Request):
             "warning": "INTENTIONAL_VULNERABILITY - Limit override for testing",
         }
     )
+
+
+@payments_router.route("/api/v1/payments/vault/status", methods=["GET"])
+async def payments_vault_status(request: Request):
+    """
+    Payments vault status endpoint.
+    VULNERABILITY: Reconnaissance — leaks vault key counts, encryption algorithm,
+    and HSM model. Useful for compliance scenarios that probe HSTS enforcement.
+    """
+    return JSONResponse(
+        {
+            "vault_id": "pci-vault-prod-01",
+            "status": "operational",
+            "encryption": {
+                "algorithm": "AES-256-GCM",
+                "key_rotation_days": 90,
+                "last_rotated": "2026-02-14T00:00:00Z",
+            },
+            "stored_methods": 18432,
+            "active_keys": 4,
+            "hsm": {"model": "Thales Luna 7", "fips_140_level": 3},
+            "tls_min_version": "TLSv1.2",
+        },
+        headers={
+            "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+            "Cache-Control": "no-store",
+        },
+    )

@@ -319,3 +319,34 @@ async def network_policies_restore(request: Request):
         'policies_restored': len(policy_ids),
         'rollback_authorization': 'not_required'
     })
+
+
+@infrastructure_router.route('/api/v1/system/status', methods=['GET'])
+async def system_status(request: Request):
+    """
+    System status endpoint, gated by service-account key.
+    VULNERABILITY: When authenticated, leaks DB version, internal service URLs,
+    and runtime details useful for reconnaissance. Auth check is intentionally
+    weak — accepts any non-empty key that does not contain 'expired'.
+    """
+    service_key = request.headers.get('x-service-key', '')
+    if not service_key or 'expired' in service_key.lower():
+        return JSONResponse(
+            {'error': 'invalid or expired service account key'},
+            status_code=401,
+        )
+
+    return JSONResponse({
+        'status': 'healthy',
+        'uptime_seconds': 1843212,
+        'environment': 'production',
+        'version': '2.4.1-rc3',
+        'database': {'engine': 'PostgreSQL', 'version': '14.9', 'host': 'pg-primary.internal:5432'},
+        'cache': {'engine': 'Redis', 'version': '7.0.5', 'host': 'redis-cache.internal:6379'},
+        'internal_services': [
+            'http://auth-service.internal:8080',
+            'http://payments-vault.internal:8443',
+            'http://audit-log.internal:9000',
+        ],
+        'feature_flags': {'pci_dss_v4_mode': True, 'soc2_evidence_collection': True},
+    })
