@@ -38,13 +38,11 @@ export const GovernmentDashboard: React.FC = () => {
 
   return (
     <div className="bg-slate-100 min-h-full">
-      {govInfo && (
-        <VulnerabilityModal 
-          isOpen={showInfo} 
-          onClose={() => setShowInfo(false)} 
-          info={govInfo} 
+      <VulnerabilityModal
+          isOpen={showInfo}
+          onClose={() => setShowInfo(false)}
+          info={govInfo}
         />
-      )}
       
       <div className="bg-slate-800 text-white pb-24">
         <div className="container mx-auto px-4 pt-12 pb-12">

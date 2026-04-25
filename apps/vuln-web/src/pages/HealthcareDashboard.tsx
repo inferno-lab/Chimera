@@ -52,13 +52,11 @@ export const HealthcareDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {healthcareInfo && (
-        <VulnerabilityModal 
-          isOpen={showInfo} 
-          onClose={() => setShowInfo(false)} 
-          info={healthcareInfo} 
+      <VulnerabilityModal
+          isOpen={showInfo}
+          onClose={() => setShowInfo(false)}
+          info={healthcareInfo}
         />
-      )}
       
       {/* Dashboard Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

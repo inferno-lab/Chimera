@@ -33,13 +33,11 @@ export const SaasDashboard: React.FC = () => {
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {saasInfo && (
-        <VulnerabilityModal 
-          isOpen={showInfo} 
-          onClose={() => setShowInfo(false)} 
-          info={saasInfo} 
+      <VulnerabilityModal
+          isOpen={showInfo}
+          onClose={() => setShowInfo(false)}
+          info={saasInfo}
         />
-      )}
       
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col">
