@@ -1,9 +1,8 @@
 """
 Integrations blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-integrations_bp = Blueprint('integrations', __name__)
+integrations_router = Router(routes=[])
 
 from . import routes

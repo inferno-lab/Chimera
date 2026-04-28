@@ -1,8 +1,8 @@
 """
 Routes for integrations endpoints.
 """
-
-from flask import request, jsonify
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from datetime import datetime, timedelta
 import uuid
 import random
@@ -11,7 +11,7 @@ import time
 
 import logging
 
-from . import integrations_bp
+from . import integrations_router
 from app.config import app_config
 from app.models import *
 from app.services import (
@@ -39,38 +39,38 @@ def _apparatus_status_fallback(*, enabled, configured, base_url, error, message)
 
 def _apparatus_error_response(exc):
     if isinstance(exc, ApparatusServiceDisabledError):
-        return jsonify(exc.to_dict()), 503
+        return JSONResponse(exc.to_dict(), status_code = 503)
     if isinstance(exc, ApparatusServiceConfigError):
-        return jsonify(exc.to_dict()), 500
+        return JSONResponse(exc.to_dict(), status_code = 500)
     if isinstance(exc, ApparatusServiceNetworkError):
-        return jsonify(exc.to_dict()), 502
+        return JSONResponse(exc.to_dict(), status_code = 502)
     if isinstance(exc, ApparatusServiceUpstreamError):
-        return jsonify(exc.to_dict()), 502
+        return JSONResponse(exc.to_dict(), status_code = 502)
     logging.getLogger('chimera').exception('Unexpected Apparatus integration error', exc_info=exc)
-    return jsonify({
+    return JSONResponse({
         'error': 'apparatus_error',
         'message': 'An internal error occurred while processing the Apparatus integration request.',
-    }), 500
+    }, status_code = 500)
 
 
 def _get_apparatus_service():
     return ApparatusService(build_apparatus_settings())
 
 
-@integrations_bp.route('/api/v1/integrations/ws/simulate-frame', methods=['POST'])
-def ws_simulate_frame():
+@integrations_router.route('/api/v1/integrations/ws/simulate-frame', methods=['POST'])
+async def ws_simulate_frame(request: Request):
     """
     Simulated WebSocket message frame processor.
     VULNERABILITY: Insecure Message Processing, Logic Manipulation
     """
-    data = request.get_json() or {}
+    data = await request.json() or {}
     frame_type = data.get('type', 'text')
     payload = data.get('data', {})
     
     # Intentionally vulnerable to admin_override manipulation in the simulated frame
     is_admin = payload.get('admin_override', False)
     
-    return jsonify({
+    return JSONResponse({
         'status': 'frame_processed',
         'type': frame_type,
         'effective_privileges': 'admin' if is_admin else 'user',
@@ -78,13 +78,13 @@ def ws_simulate_frame():
     })
 
 
-@integrations_bp.route('/api/v1/integrations/apparatus/status')
-def integrations_apparatus_status():
+@integrations_router.route('/api/v1/integrations/apparatus/status')
+async def integrations_apparatus_status(request: Request):
     """Surface Apparatus connectivity and ghost status for Chimera UI clients."""
     settings = build_apparatus_settings()
 
     if not settings.enabled:
-        return jsonify(_apparatus_status_fallback(
+        return JSONResponse(_apparatus_status_fallback(
             enabled=False,
             configured=bool(settings.base_url),
             base_url=settings.base_url,
@@ -93,7 +93,7 @@ def integrations_apparatus_status():
         ))
 
     if not settings.base_url:
-        return jsonify(_apparatus_status_fallback(
+        return JSONResponse(_apparatus_status_fallback(
             enabled=True,
             configured=False,
             base_url='',
@@ -103,9 +103,9 @@ def integrations_apparatus_status():
 
     service = _get_apparatus_service()
     try:
-        return jsonify(service.get_status())
+        return JSONResponse(service.get_status())
     except (ApparatusServiceNetworkError, ApparatusServiceUpstreamError) as exc:
-        return jsonify(_apparatus_status_fallback(
+        return JSONResponse(_apparatus_status_fallback(
             enabled=True,
             configured=True,
             base_url=settings.base_url,
@@ -114,17 +114,20 @@ def integrations_apparatus_status():
         ))
 
 
-@integrations_bp.route('/api/v1/integrations/apparatus/history')
-def integrations_apparatus_history():
+@integrations_router.route('/api/v1/integrations/apparatus/history')
+async def integrations_apparatus_history(request: Request):
     """Return bounded Apparatus request history for UI display."""
-    limit = request.args.get('limit', default=50, type=int)
+    try:
+        limit = int(request.query_params.get('limit', 50))
+    except (TypeError, ValueError):
+        limit = 50
     if limit <= 0:
         limit = 50
     limit = min(limit, 500)
 
     service = _get_apparatus_service()
     try:
-        return jsonify(service.get_history(limit=limit))
+        return JSONResponse(service.get_history(limit=limit))
     except (
         ApparatusServiceDisabledError,
         ApparatusServiceConfigError,
@@ -134,28 +137,28 @@ def integrations_apparatus_history():
         return _apparatus_error_response(exc)
 
 
-@integrations_bp.route('/api/v1/integrations/apparatus/ghosts/start', methods=['POST'])
-def integrations_apparatus_ghosts_start():
+@integrations_router.route('/api/v1/integrations/apparatus/ghosts/start', methods=['POST'])
+async def integrations_apparatus_ghosts_start(request: Request):
     """Start Apparatus ghost traffic with Chimera-provided settings."""
     service = _get_apparatus_service()
-    payload = request.get_json(silent=True) or {}
+    payload = await request.json() or {}
     allowed_keys = {'rps', 'duration', 'endpoints'}
 
     if not isinstance(payload, dict):
-        return jsonify({
+        return JSONResponse({
             'error': 'apparatus_validation_error',
             'message': 'Ghost start payload must be a JSON object.',
-        }), 400
+        }, status_code = 400)
 
     unknown_keys = sorted(set(payload.keys()) - allowed_keys)
     if unknown_keys:
-        return jsonify({
+        return JSONResponse({
             'error': 'apparatus_validation_error',
             'message': f'Unsupported ghost start fields: {", ".join(unknown_keys)}.',
-        }), 400
+        }, status_code = 400)
 
     try:
-        return jsonify(service.start_ghosts(payload))
+        return JSONResponse(service.start_ghosts(payload))
     except (
         ApparatusServiceDisabledError,
         ApparatusServiceConfigError,
@@ -165,13 +168,13 @@ def integrations_apparatus_ghosts_start():
         return _apparatus_error_response(exc)
 
 
-@integrations_bp.route('/api/v1/integrations/apparatus/ghosts/stop', methods=['POST'])
-def integrations_apparatus_ghosts_stop():
+@integrations_router.route('/api/v1/integrations/apparatus/ghosts/stop', methods=['POST'])
+async def integrations_apparatus_ghosts_stop(request: Request):
     """Stop Apparatus ghost traffic."""
     service = _get_apparatus_service()
 
     try:
-        return jsonify(service.stop_ghosts())
+        return JSONResponse(service.stop_ghosts())
     except (
         ApparatusServiceDisabledError,
         ApparatusServiceConfigError,
@@ -181,18 +184,18 @@ def integrations_apparatus_ghosts_stop():
         return _apparatus_error_response(exc)
 
 
-@integrations_bp.route('/api/webhooks/register', methods=['POST'])
-def webhooks_register():
+@integrations_router.route('/api/webhooks/register', methods=['POST'])
+async def webhooks_register(request: Request):
     """Webhook registration for persistence"""
-    data = request.get_json()
+    data = await request.json()
     callback_url = data.get('callback_url', '')
 
 
-@integrations_bp.route('/api/integrations/discovery')
-def integrations_discovery():
+@integrations_router.route('/api/integrations/discovery')
+async def integrations_discovery(request: Request):
     """Service discovery endpoint - exposes internal architecture"""
     # Intentionally exposes internal service topology for reconnaissance
-    return jsonify({
+    return JSONResponse({
         'services': [
             {'name': 'auth-service', 'endpoint': 'http://internal-auth:8080', 'version': '2.1.0'},
             {'name': 'payment-gateway', 'endpoint': 'http://internal-payment:8081', 'version': '1.5.2'},
@@ -207,73 +210,73 @@ def integrations_discovery():
     })
 
 
-@integrations_bp.route('/api/webhooks/callback', methods=['POST'])
-def webhooks_callback():
+@integrations_router.route('/api/webhooks/callback', methods=['POST'])
+async def webhooks_callback(request: Request):
     """Webhook callback endpoint - vulnerable to SSRF and hijacking"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     target_url = data.get('url', '')
 
 
-@integrations_bp.route('/api/integrations/third-party', methods=['POST'])
-def integrations_third_party():
+@integrations_router.route('/api/integrations/third-party', methods=['POST'])
+async def integrations_third_party(request: Request):
     """Third-party integration registration - credential exposure"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
 
 
-@integrations_bp.route('/api/integrations/payment/webhook')
-def integrations_payment_webhook():
+@integrations_router.route('/api/integrations/payment/webhook')
+async def integrations_payment_webhook(request: Request):
     """Payment webhook endpoint - vulnerable to replay attacks"""
     # No signature verification
     # Accepts duplicate webhook events
 
 
-@integrations_bp.route('/api/integrations/cdn/invalidate', methods=['POST'])
-def integrations_cdn_invalidate():
+@integrations_router.route('/api/integrations/cdn/invalidate', methods=['POST'])
+async def integrations_cdn_invalidate(request: Request):
     """CDN cache invalidation - vulnerable to cache poisoning"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
 
 
-@integrations_bp.route('/api/integrations/social/callback')
-def integrations_social_callback():
+@integrations_router.route('/api/integrations/social/callback')
+async def integrations_social_callback(request: Request):
     """Social OAuth callback - vulnerable to authorization code interception"""
-    code = request.args.get('code', '')
-    state = request.args.get('state', '')
+    code = request.query_params.get('code', '')
+    state = request.query_params.get('state', '')
 
 
-@integrations_bp.route('/api/integrations/email/webhook', methods=['POST'])
-def integrations_email_webhook():
+@integrations_router.route('/api/integrations/email/webhook', methods=['POST'])
+async def integrations_email_webhook(request: Request):
     """Email service webhook - vulnerable to header injection"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
 
 
-@integrations_bp.route('/api/integrations/analytics/data')
-def integrations_analytics_data():
+@integrations_router.route('/api/integrations/analytics/data')
+async def integrations_analytics_data(request: Request):
     """Analytics data export - exposes PII and business intelligence"""
     # No authentication or authorization
     # Exposes sensitive analytics data
 
 
-@integrations_bp.route('/api/integrations/crm/sync', methods=['POST'])
-def integrations_crm_sync():
+@integrations_router.route('/api/integrations/crm/sync', methods=['POST'])
+async def integrations_crm_sync(request: Request):
     """CRM data synchronization - mass data exfiltration vector"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
 
 
-@integrations_bp.route('/api/integrations/backdoor', methods=['POST'])
-def integrations_backdoor():
+@integrations_router.route('/api/integrations/backdoor', methods=['POST'])
+async def integrations_backdoor(request: Request):
     """Integration backdoor - persistent access mechanism"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
 
 
-@integrations_bp.route('/api/integrations/export')
-def integrations_export():
+@integrations_router.route('/api/integrations/export')
+async def integrations_export(request: Request):
     """Integration configuration export - credential exposure"""
     # Exports all integration configurations with credentials
 
 
-@integrations_bp.route('/api/integrations/verify', methods=['POST'])
-def integrations_verify():
+@integrations_router.route('/api/integrations/verify', methods=['POST'])
+async def integrations_verify(request: Request):
     """Integration verification endpoint - insecure signature validation"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     signature = data.get('signature', '')
     payload = data.get('payload', {})
