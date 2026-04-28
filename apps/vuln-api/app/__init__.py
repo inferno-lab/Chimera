@@ -197,7 +197,7 @@ def create_app(config=None):
     from app.blueprints.auth import auth_bp
     from app.blueprints.banking import banking_router
     from app.blueprints.mobile import mobile_router
-    from app.blueprints.healthcare import healthcare_bp
+    from app.blueprints.healthcare import healthcare_router
     from app.blueprints.ecommerce import ecommerce_router
     from app.blueprints.checkout import checkout_router
     from app.blueprints.payments import payments_router
@@ -228,7 +228,6 @@ def create_app(config=None):
 
     # Register remaining Flask blueprints while migrated routes stay mirrored via compat adapters.
     app.register_blueprint(auth_bp)
-    app.register_blueprint(healthcare_bp)
     app.register_blueprint(testing_bp)
 
     register_flask_compat_routes(app, admin_router, endpoint_prefix="admin")
@@ -254,6 +253,10 @@ def create_app(config=None):
     register_flask_compat_routes(app, payments_router, endpoint_prefix="payments")
     register_flask_compat_routes(app, saas_router, endpoint_prefix="saas")
     register_flask_compat_routes(app, banking_router, endpoint_prefix="banking")
+    # healthcare must precede insurance — both register /api/v1/insurance/claims*
+    # and Flask resolves duplicate rules in registration order. Legacy blueprint
+    # order had healthcare first, so preserve that here.
+    register_flask_compat_routes(app, healthcare_router, endpoint_prefix="healthcare")
     register_flask_compat_routes(app, insurance_router, endpoint_prefix="insurance")
     register_flask_compat_routes(app, ecommerce_router, endpoint_prefix="ecommerce")
     register_flask_compat_routes(app, integrations_router, endpoint_prefix="integrations")

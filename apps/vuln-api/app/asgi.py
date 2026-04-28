@@ -189,6 +189,7 @@ def create_app(config: dict | None = None) -> Starlette:
     from app.blueprints.insurance import insurance_router
     from app.blueprints.ecommerce import ecommerce_router
     from app.blueprints.integrations import integrations_router
+    from app.blueprints.healthcare import healthcare_router
 
     # Core infrastructure routes + routes from ported blueprints
     routes = [
@@ -215,6 +216,9 @@ def create_app(config: dict | None = None) -> Starlette:
         *payments_router.routes,
         *saas_router.routes,
         *banking_router.routes,
+        # healthcare must precede insurance so /api/v1/insurance/claims* resolves
+        # to healthcare's handler (the legacy Flask order had healthcare first).
+        *healthcare_router.routes,
         *insurance_router.routes,
         *ecommerce_router.routes,
         *integrations_router.routes,

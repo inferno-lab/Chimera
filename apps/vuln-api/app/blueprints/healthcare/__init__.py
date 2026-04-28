@@ -1,9 +1,8 @@
 """
 Healthcare blueprint.
 """
+from app.routing import DecoratorRouter as Router
 
-from flask import Blueprint
-
-healthcare_bp = Blueprint('healthcare', __name__)
+healthcare_router = Router(routes=[])
 
 from . import routes

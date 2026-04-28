@@ -2,8 +2,8 @@
 Routes for healthcare endpoints.
 Demonstrates PHI data exposure, access control bypass, and healthcare-specific vulnerabilities.
 """
-
-from flask import request, jsonify, render_template_string, session
+from starlette.requests import Request
+from starlette.responses import JSONResponse, HTMLResponse
 from datetime import datetime, timedelta
 import uuid
 import random
@@ -14,7 +14,7 @@ import os
 import pickle
 import base64
 
-from . import healthcare_bp
+from . import healthcare_router
 from app.models import *
 from app.utils.security_config import security_config
 
@@ -23,23 +23,23 @@ from app.utils.security_config import security_config
 # PATIENT RECORDS - PHI Exposure Vulnerabilities
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/records/emergency-access', methods=['POST'])
-def emergency_access():
+@healthcare_router.route('/api/v1/healthcare/records/emergency-access', methods=['POST'])
+async def emergency_access(request: Request):
     """
     Emergency "Break-Glass" access to PHI.
     VULNERABILITY: Missing Justification, Missing Audit Alert
     """
-    data = request.get_json() or {}
+    data = await request.json() or {}
     patient_id = data.get('patient_id')
     justification = data.get('justification')
     
     if not justification:
-        return jsonify({
+        return JSONResponse({
             'error': 'Emergency access requires a justification string.',
             'vulnerability': 'JUSTIFICATION_ENFORCEMENT_MISSING'
-        }), 400
+        }, status_code = 400)
         
-    return jsonify({
+    return JSONResponse({
         'status': 'access_granted',
         'patient_id': patient_id,
         'access_token': f"EMERGENCY-{uuid.uuid4().hex[:12]}",
@@ -47,20 +47,20 @@ def emergency_access():
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/records/export', methods=['POST'])
-def export_records():
+@healthcare_router.route('/api/v1/healthcare/records/export', methods=['POST'])
+async def export_records(request: Request):
     """
     Bulk PHI data export.
     VULNERABILITY: Mass Data Exfiltration, Unauthorized PHI Access
     """
-    data = request.get_json() or {}
+    data = await request.json() or {}
     patient_ids = data.get('patient_ids', [])
     export_format = data.get('format', 'pdf')
     
     # Intentionally vulnerable to audit suppression if X-Skip-Audit header is present
     skip_audit = request.headers.get('X-Skip-Audit', 'false').lower() == 'true'
     
-    return jsonify({
+    return JSONResponse({
         'export_id': f"PHI-EXP-{uuid.uuid4().hex[:8]}",
         'status': 'processing',
         'patient_count': len(patient_ids),
@@ -70,8 +70,8 @@ def export_records():
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/records')
-def list_records():
+@healthcare_router.route('/api/v1/healthcare/records')
+async def list_records(request: Request):
     """List medical records - Missing pagination and access controls"""
     # Vulnerability: No authentication check, returns all records
     # Vulnerability: PHI data exposure without proper authorization
@@ -89,25 +89,25 @@ def list_records():
             'provider_id': record.get('provider_id')
         })
 
-    return jsonify({
+    return JSONResponse({
         'records': records,
         'total_count': len(records),
         'warning': 'PHI data included without authorization check'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/records/<record_id>')
-def get_record_details(record_id):
+@healthcare_router.route('/api/v1/healthcare/records/<record_id>')
+async def get_record_details(request: Request, record_id):
     """Get record details - IDOR vulnerability"""
     # Vulnerability: No authorization check - any user can access any record
     # Vulnerability: Full PHI exposure including sensitive fields
 
     if record_id not in medical_records_db:
-        return jsonify({'error': 'Record not found'}), 404
+        return JSONResponse({'error': 'Record not found'}, status_code = 404)
 
     record = medical_records_db[record_id]
 
-    return jsonify({
+    return JSONResponse({
         'record_id': record_id,
         'patient_info': {
             'patient_id': record.get('patient_id'),
@@ -133,16 +133,16 @@ def get_record_details(record_id):
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/records/search')
-def search_records():
+@healthcare_router.route('/api/v1/healthcare/records/search')
+async def search_records(request: Request):
     """Search records - SQL Injection vulnerability"""
     # Vulnerability: SQL injection through unsanitized search parameter
     # Vulnerability: Returns sensitive PHI without proper authorization
 
-    search_query = request.args.get('q', '')
-    patient_name = request.args.get('name', '')
-    ssn = request.args.get('ssn', '')
-    diagnosis = request.args.get('diagnosis', '')
+    search_query = request.query_params.get('q', '')
+    patient_name = request.query_params.get('name', '')
+    ssn = request.query_params.get('ssn', '')
+    diagnosis = request.query_params.get('diagnosis', '')
 
     # Check for global security override
     if security_config.sqli_active:
@@ -168,7 +168,7 @@ def search_records():
                     'diagnosis': record.get('diagnosis')
                 })
         
-        resp = jsonify({
+        resp = JSONResponse({
             'results': results,
             'count': len(results),
             'sql_query': sql_query,
@@ -185,7 +185,7 @@ def search_records():
         # Simulate SQL injection detection
         if any(keyword in search_query.lower() for keyword in ['union', 'select', '--', ';', 'drop', 'delete']):
             # Simulate successful SQL injection
-            resp = jsonify({
+            resp = JSONResponse({
                 'vulnerability': 'SQL_INJECTION_DETECTED',
                 'query': sql_query,
                 'message': 'SQL injection successful',
@@ -214,20 +214,20 @@ def search_records():
                 'diagnosis': record.get('diagnosis')
             })
 
-    return jsonify({
+    return JSONResponse({
         'results': results,
         'count': len(results),
         'sql_query': sql_query if search_query else 'N/A'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/records/upload', methods=['POST'])
-def upload_documents():
+@healthcare_router.route('/api/v1/healthcare/records/upload', methods=['POST'])
+async def upload_documents(request: Request):
     """Upload documents - Path traversal vulnerability"""
     # Vulnerability: Path traversal in filename handling
     # Vulnerability: Unrestricted file upload
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     record_id = data.get('record_id')
     filename = data.get('filename', '')
     content = data.get('content', '')
@@ -237,7 +237,7 @@ def upload_documents():
 
     if '..' in filename or '/' in filename:
         # Simulate path traversal attack
-        return jsonify({
+        return JSONResponse({
             'status': 'uploaded',
             'vulnerability': 'PATH_TRAVERSAL',
             'file_path': f'/var/www/uploads/{filename}',
@@ -251,7 +251,7 @@ def upload_documents():
 
     # Normal upload (still vulnerable to unrestricted file types)
     upload_id = str(uuid.uuid4())
-    return jsonify({
+    return JSONResponse({
         'status': 'uploaded',
         'upload_id': upload_id,
         'filename': filename,
@@ -265,8 +265,8 @@ def upload_documents():
 # APPOINTMENTS - Missing Authorization Controls
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/appointments')
-def list_appointments():
+@healthcare_router.route('/api/v1/healthcare/appointments')
+async def list_appointments(request: Request):
     """List appointments - Exposes all patient appointments"""
     # Vulnerability: No authorization check
     # Vulnerability: Returns PHI (patient names, conditions)
@@ -285,19 +285,19 @@ def list_appointments():
         for _ in range(20)
     ]
 
-    return jsonify({
+    return JSONResponse({
         'appointments': appointments,
         'total_count': len(appointments)
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/appointments/schedule', methods=['POST'])
-def schedule_appointment():
+@healthcare_router.route('/api/v1/healthcare/appointments/schedule', methods=['POST'])
+async def schedule_appointment(request: Request):
     """Schedule appointment - Missing validation"""
     # Vulnerability: No provider credential verification
     # Vulnerability: Can schedule for any patient
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     patient_id = data.get('patient_id')
     provider_id = data.get('provider_id')
     appointment_date = data.get('date')
@@ -305,7 +305,7 @@ def schedule_appointment():
 
     appointment_id = f'APT-{uuid.uuid4().hex[:8]}'
 
-    return jsonify({
+    return JSONResponse({
         'status': 'scheduled',
         'appointment_id': appointment_id,
         'patient_id': patient_id,
@@ -316,15 +316,15 @@ def schedule_appointment():
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/appointments/cancel', methods=['POST'])
-def cancel_appointment():
+@healthcare_router.route('/api/v1/healthcare/appointments/cancel', methods=['POST'])
+async def cancel_appointment(request: Request):
     """Cancel appointment - IDOR vulnerability"""
     # Vulnerability: Can cancel any appointment without authorization
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     appointment_id = data.get('appointment_id')
 
-    return jsonify({
+    return JSONResponse({
         'status': 'cancelled',
         'appointment_id': appointment_id,
         'cancelled_by': 'unauthenticated_user',
@@ -336,8 +336,8 @@ def cancel_appointment():
 # PRESCRIPTIONS - Controlled Substance Abuse
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/prescriptions')
-def list_prescriptions():
+@healthcare_router.route('/api/v1/healthcare/prescriptions')
+async def list_prescriptions(request: Request):
     """List prescriptions - DEA controlled substances exposed"""
     # Vulnerability: Exposes controlled substance prescriptions
     # Vulnerability: No authorization check
@@ -360,26 +360,26 @@ def list_prescriptions():
         for _ in range(15)
     ]
 
-    return jsonify({
+    return JSONResponse({
         'prescriptions': prescriptions,
         'total_count': len(prescriptions),
         'warning': 'DEA controlled substances exposed without authorization'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/prescriptions/refill', methods=['POST'])
-def request_refill():
+@healthcare_router.route('/api/v1/healthcare/prescriptions/refill', methods=['POST'])
+async def request_refill(request: Request):
     """Request refill - Missing controls on controlled substances"""
     # Vulnerability: Can request refills without provider verification
     # Vulnerability: No check on refill limits for controlled substances
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     prescription_id = data.get('prescription_id')
     patient_id = data.get('patient_id')
 
     refill_id = f'REFILL-{uuid.uuid4().hex[:8]}'
 
-    return jsonify({
+    return JSONResponse({
         'status': 'approved',
         'refill_id': refill_id,
         'prescription_id': prescription_id,
@@ -389,12 +389,12 @@ def request_refill():
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/prescriptions/history')
-def prescription_history():
+@healthcare_router.route('/api/v1/healthcare/prescriptions/history')
+async def prescription_history(request: Request):
     """Prescription history - Full medication history exposed"""
     # Vulnerability: IDOR - can access any patient's prescription history
 
-    patient_id = request.args.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
+    patient_id = request.query_params.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
 
     history = [
         {
@@ -407,18 +407,18 @@ def prescription_history():
         for days in range(0, 365, 30)
     ]
 
-    return jsonify({
+    return JSONResponse({
         'patient_id': patient_id,
         'prescription_history': history,
         'total_prescriptions': len(history)
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/prescriptions/export')
-def prescriptions_export():
+@healthcare_router.route('/api/v1/healthcare/prescriptions/export')
+async def prescriptions_export(request: Request):
     """Export prescriptions - bulk PHI exposure"""
-    limit = int(request.args.get('limit', 1000))
-    include_phi = request.args.get('include_phi', 'false').lower() == 'true'
+    limit = int(request.query_params.get('limit', 1000))
+    include_phi = request.query_params.get('include_phi', 'false').lower() == 'true'
 
     prescriptions = [
         {
@@ -435,7 +435,7 @@ def prescriptions_export():
         for entry in prescriptions:
             entry.pop('patient_name', None)
 
-    return jsonify({
+    return JSONResponse({
         'exported': prescriptions,
         'count': len(prescriptions),
         'include_phi': include_phi,
@@ -447,8 +447,8 @@ def prescriptions_export():
 # PROVIDER DIRECTORY & LAB RESULTS
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/providers/<provider_id>')
-def provider_directory(provider_id):
+@healthcare_router.route('/api/v1/healthcare/providers/<provider_id>')
+async def provider_directory(request: Request, provider_id):
     """Provider directory lookup - IDOR vulnerability"""
     provider = providers_db.get(provider_id)
     if not provider:
@@ -461,17 +461,17 @@ def provider_directory(provider_id):
         }
         providers_db[provider_id] = provider
 
-    return jsonify({
+    return JSONResponse({
         'provider': provider,
         'warning': 'Provider data exposed without access control'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/lab-results/export')
-def lab_results_export():
+@healthcare_router.route('/api/v1/healthcare/lab-results/export')
+async def lab_results_export(request: Request):
     """Lab results export - PHI exposure"""
-    include_phi = request.args.get('include_phi', 'false').lower() == 'true'
-    limit = int(request.args.get('limit', 1000))
+    include_phi = request.query_params.get('include_phi', 'false').lower() == 'true'
+    limit = int(request.query_params.get('limit', 1000))
     exports = []
 
     for record in list(medical_records_db.values())[:limit]:
@@ -485,7 +485,7 @@ def lab_results_export():
             payload['ssn'] = record.get('ssn')
         exports.append(payload)
 
-    return jsonify({
+    return JSONResponse({
         'results': exports,
         'include_phi': include_phi,
         'count': len(exports),
@@ -493,10 +493,10 @@ def lab_results_export():
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/imaging/<record_id>/download')
-def imaging_download(record_id):
+@healthcare_router.route('/api/v1/healthcare/imaging/<record_id>/download')
+async def imaging_download(request: Request, record_id):
     """Imaging download - IDOR vulnerability"""
-    include_phi = request.args.get('include_phi', 'false').lower() == 'true'
+    include_phi = request.query_params.get('include_phi', 'false').lower() == 'true'
     record = medical_records_db.get(record_id, {'record_id': record_id, 'patient_id': f'PAT-{random.randint(1000, 9999)}'})
     payload = {
         'record_id': record_id,
@@ -508,7 +508,7 @@ def imaging_download(record_id):
         payload['patient_id'] = record.get('patient_id')
         payload['patient_name'] = record.get('patient_name', 'Unknown')
 
-    return jsonify({
+    return JSONResponse({
         'imaging': payload,
         'include_phi': include_phi,
         'warning': 'Imaging record downloaded without authorization'
@@ -519,10 +519,10 @@ def imaging_download(record_id):
 # TELEHEALTH & PHARMACY SERVICES
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/telehealth/session', methods=['POST'])
-def telehealth_session():
+@healthcare_router.route('/api/v1/healthcare/telehealth/session', methods=['POST'])
+async def telehealth_session(request: Request):
     """Telehealth session access - session hijack vulnerability"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     session_id = data.get('session_id', f'TELE-{uuid.uuid4().hex[:6]}')
 
     session_payload = {
@@ -535,16 +535,16 @@ def telehealth_session():
     }
     telehealth_sessions_db[session_id] = session_payload
 
-    return jsonify({
+    return JSONResponse({
         'session': session_payload,
         'warning': 'Telehealth session joined without authorization'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/pharmacy/prior-auth', methods=['POST'])
-def pharmacy_prior_auth():
+@healthcare_router.route('/api/v1/healthcare/pharmacy/prior-auth', methods=['POST'])
+async def pharmacy_prior_auth(request: Request):
     """Prior authorization override - approval bypass"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     auth_id = f'PA-{uuid.uuid4().hex[:8]}'
 
     auth_record = {
@@ -557,18 +557,18 @@ def pharmacy_prior_auth():
     }
     prior_auth_db[auth_id] = auth_record
 
-    return jsonify({
+    return JSONResponse({
         'prior_auth': auth_record,
         'warning': 'Prior authorization approved without review'
-    }), 201
+    }, status_code = 201)
 
 
 # ============================================================================
 # INSURANCE - Claims and Coverage (from insurance blueprint)
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/insurance/policies')
-def list_policies():
+@healthcare_router.route('/api/v1/insurance/policies')
+async def list_policies(request: Request):
     """List insurance policies"""
     # Vulnerability: Exposes all policies without authorization
 
@@ -589,19 +589,19 @@ def list_policies():
         for _ in range(10)
     ]
 
-    return jsonify({
+    return JSONResponse({
         'policies': policies,
         'total_count': len(policies)
     })
 
 
-@healthcare_bp.route('/api/v1/insurance/claims', methods=['POST'])
-def submit_claim():
+@healthcare_router.route('/api/v1/insurance/claims', methods=['POST'])
+async def submit_claim(request: Request):
     """Submit insurance claim"""
     # Vulnerability: Can submit claims for any policy
     # Vulnerability: No validation of claim amounts
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     claim_id = f'CLM-{uuid.uuid4().hex[:8]}'
 
     claim = {
@@ -619,22 +619,22 @@ def submit_claim():
 
     claims_db[claim_id] = claim
 
-    return jsonify({
+    return JSONResponse({
         'status': 'submitted',
         'claim': claim
     })
 
 
-@healthcare_bp.route('/api/v1/insurance/claims/<claim_id>')
-def get_claim_status(claim_id):
+@healthcare_router.route('/api/v1/insurance/claims/<claim_id>')
+async def get_claim_status(request: Request, claim_id):
     """Get claim status - IDOR vulnerability"""
     # Vulnerability: Can check status of any claim
 
     if claim_id in claims_db:
-        return jsonify(claims_db[claim_id])
+        return JSONResponse(claims_db[claim_id])
 
     # Return mock data for any claim_id
-    return jsonify({
+    return JSONResponse({
         'claim_id': claim_id,
         'status': random.choice(['submitted', 'processing', 'approved', 'denied', 'paid']),
         'billed_amount': random.randint(100, 10000),
@@ -644,15 +644,15 @@ def get_claim_status(claim_id):
     })
 
 
-@healthcare_bp.route('/api/v1/insurance/coverage')
-def check_coverage():
+@healthcare_router.route('/api/v1/insurance/coverage')
+async def check_coverage(request: Request):
     """Check coverage - Exposes policy details"""
     # Vulnerability: Can check coverage for any policy
 
-    policy_number = request.args.get('policy_number', '')
-    procedure_code = request.args.get('procedure_code', '')
+    policy_number = request.query_params.get('policy_number', '')
+    procedure_code = request.query_params.get('procedure_code', '')
 
-    return jsonify({
+    return JSONResponse({
         'policy_number': policy_number,
         'procedure_code': procedure_code,
         'covered': random.choice([True, False]),
@@ -667,10 +667,10 @@ def check_coverage():
 # HEALTHCARE INSURANCE - V1 PREFIXED ROUTES
 # ============================================================================
 
-@healthcare_bp.route('/api/v1/healthcare/insurance/claims', methods=['POST'])
-def healthcare_insurance_claims():
+@healthcare_router.route('/api/v1/healthcare/insurance/claims', methods=['POST'])
+async def healthcare_insurance_claims(request: Request):
     """Submit insurance claim (healthcare namespace)"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     claim_id = f'CLM-{uuid.uuid4().hex[:8]}'
 
     claim = {
@@ -684,18 +684,18 @@ def healthcare_insurance_claims():
     }
     claims_db[claim_id] = claim
 
-    return jsonify({
+    return JSONResponse({
         'status': 'submitted',
         'claim': claim,
         'warning': 'Claim accepted without authorization'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/insurance/eligibility')
-def healthcare_insurance_eligibility():
+@healthcare_router.route('/api/v1/healthcare/insurance/eligibility')
+async def healthcare_insurance_eligibility(request: Request):
     """Eligibility check - IDOR exposure"""
-    member_id = request.args.get('member_id', f'MEM-{random.randint(1000, 9999)}')
-    include_pii = request.args.get('include_pii', 'false').lower() == 'true'
+    member_id = request.query_params.get('member_id', f'MEM-{random.randint(1000, 9999)}')
+    include_pii = request.query_params.get('include_pii', 'false').lower() == 'true'
 
     eligibility = {
         'member_id': member_id,
@@ -709,16 +709,16 @@ def healthcare_insurance_eligibility():
 
     eligibility_checks_db[member_id] = eligibility
 
-    return jsonify({
+    return JSONResponse({
         'eligibility': eligibility,
         'warning': 'Eligibility returned without authorization'
     })
 
 
-@healthcare_bp.route('/api/v1/healthcare/insurance/preauth', methods=['POST'])
-def healthcare_insurance_preauth():
+@healthcare_router.route('/api/v1/healthcare/insurance/preauth', methods=['POST'])
+async def healthcare_insurance_preauth(request: Request):
     """Pre-authorization override"""
-    data = request.get_json() or {}
+    data = await request.json() or {}
     preauth_id = f'PRE-{uuid.uuid4().hex[:8]}'
 
     record = {
@@ -729,20 +729,20 @@ def healthcare_insurance_preauth():
         'approved_at': datetime.now().isoformat()
     }
 
-    return jsonify({
+    return JSONResponse({
         'preauth': record,
         'warning': 'Pre-authorization approved without review'
-    }), 201
+    }, status_code = 201)
 
 
 # ============================================================================
 # LEGACY ENDPOINTS - Additional PHI Exposure
 # ============================================================================
 
-@healthcare_bp.route('/api/hipaa/directory')
-def hipaa_directory():
+@healthcare_router.route('/api/hipaa/directory')
+async def hipaa_directory(request: Request):
     """Healthcare system discovery - reconnaissance target"""
-    return jsonify({
+    return JSONResponse({
         'healthcare_systems': [
             {
                 'system_id': 'HS-001',
@@ -769,10 +769,10 @@ def hipaa_directory():
     })
 
 
-@healthcare_bp.route('/api/medical/phi/endpoints')
-def medical_phi_endpoints():
+@healthcare_router.route('/api/medical/phi/endpoints')
+async def medical_phi_endpoints(request: Request):
     """PHI access points discovery - HIPAA violation vector"""
-    return jsonify({
+    return JSONResponse({
         'phi_endpoints': [
             '/api/v1/healthcare/records',
             '/api/medical/genetics/profiles',
@@ -791,13 +791,13 @@ def medical_phi_endpoints():
     })
 
 
-@healthcare_bp.route('/api/medical/genetics/profiles')
-def medical_genetics_profiles():
+@healthcare_router.route('/api/medical/genetics/profiles')
+async def medical_genetics_profiles(request: Request):
     """Genetic information theft - highly sensitive PHI"""
-    patient_id = request.args.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
+    patient_id = request.query_params.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
 
     # Vulnerability: No authorization check for highly sensitive genetic data
-    return jsonify({
+    return JSONResponse({
         'patient_id': patient_id,
         'genetic_profile': {
             'genome_sequenced': True,
@@ -823,10 +823,10 @@ def medical_genetics_profiles():
     })
 
 
-@healthcare_bp.route('/api/medical/mental-health/sessions')
-def medical_mental_health_sessions():
+@healthcare_router.route('/api/medical/mental-health/sessions')
+async def medical_mental_health_sessions(request: Request):
     """Mental health records - highly sensitive PHI"""
-    patient_id = request.args.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
+    patient_id = request.query_params.get('patient_id', f'PAT-{random.randint(1000, 9999)}')
 
     # Vulnerability: Mental health records exposed without authorization
     sessions = [
@@ -851,7 +851,7 @@ def medical_mental_health_sessions():
         for days in [7, 14, 21, 28, 35, 42]
     ]
 
-    return jsonify({
+    return JSONResponse({
         'patient_id': patient_id,
         'mental_health_sessions': sessions,
         'total_sessions': len(sessions),
@@ -859,18 +859,18 @@ def medical_mental_health_sessions():
     })
 
 
-@healthcare_bp.route('/api/hipaa/export/bulk')
-def hipaa_bulk_export():
+@healthcare_router.route('/api/hipaa/export/bulk')
+async def hipaa_bulk_export(request: Request):
     """Mass HIPAA data extraction - data exfiltration"""
     # Vulnerability: Bulk export without proper authorization
     # Vulnerability: No rate limiting or audit logging
 
-    export_format = request.args.get('format', 'json')
-    record_count = int(request.args.get('count', 100))
+    export_format = request.query_params.get('format', 'json')
+    record_count = int(request.query_params.get('count', 100))
 
     export_id = f'EXPORT-{uuid.uuid4().hex[:8]}'
 
-    return jsonify({
+    return JSONResponse({
         'export_id': export_id,
         'format': export_format,
         'record_count': record_count,
@@ -881,20 +881,20 @@ def hipaa_bulk_export():
     })
 
 
-@healthcare_bp.route('/api/hipaa/transfer/encrypted', methods=['POST'])
-def hipaa_transfer_encrypted():
+@healthcare_router.route('/api/hipaa/transfer/encrypted', methods=['POST'])
+async def hipaa_transfer_encrypted(request: Request):
     """HIPAA data transfer - SSRF vulnerability"""
     # Vulnerability: SSRF through unvalidated destination URL
     # Vulnerability: Insecure data transfer
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     destination = data.get('destination', '')
     patient_ids = data.get('patient_ids', [])
 
     # Vulnerability: No URL validation allows SSRF
     if destination:
         if any(keyword in destination.lower() for keyword in ['localhost', '127.0.0.1', '169.254', '10.', '192.168', 'metadata']):
-            return jsonify({
+            return JSONResponse({
                 'vulnerability': 'SSRF_DETECTED',
                 'destination': destination,
                 'message': 'Internal network access detected',
@@ -907,7 +907,7 @@ def hipaa_transfer_encrypted():
 
     transfer_id = f'TRANSFER-{uuid.uuid4().hex[:8]}'
 
-    return jsonify({
+    return JSONResponse({
         'transfer_id': transfer_id,
         'destination': destination,
         'patient_count': len(patient_ids),
@@ -917,19 +917,19 @@ def hipaa_transfer_encrypted():
     })
 
 
-@healthcare_bp.route('/api/hipaa/system/configuration', methods=['POST'])
-def hipaa_system_configuration():
+@healthcare_router.route('/api/hipaa/system/configuration', methods=['POST'])
+async def hipaa_system_configuration(request: Request):
     """HIPAA system configuration - XXE vulnerability"""
     # Vulnerability: XXE injection through XML configuration
     # Vulnerability: Deserialization attack
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     config_xml = data.get('config_xml', '')
     config_serialized = data.get('config_data', '')
 
     # Vulnerability: XXE injection detection
     if config_xml and any(keyword in config_xml for keyword in ['<!ENTITY', '<!DOCTYPE', 'SYSTEM']):
-        return jsonify({
+        return JSONResponse({
             'vulnerability': 'XXE_INJECTION_DETECTED',
             'message': 'External entity processing enabled',
             'exposed_files': [
@@ -947,7 +947,7 @@ def hipaa_system_configuration():
             # Simulate deserialization vulnerability
             decoded = base64.b64decode(config_serialized)
             if b'pickle' in decoded or b'__reduce__' in decoded:
-                return jsonify({
+                return JSONResponse({
                     'vulnerability': 'INSECURE_DESERIALIZATION',
                     'message': 'Arbitrary code execution possible',
                     'payload_executed': True
@@ -955,38 +955,38 @@ def hipaa_system_configuration():
         except:
             pass
 
-    return jsonify({
+    return JSONResponse({
         'status': 'configuration_updated',
         'warning': 'XML processing vulnerable to XXE, deserialization vulnerable to RCE'
     })
 
 
-@healthcare_bp.route('/api/hipaa/audit-logs', methods=['PUT'])
-def hipaa_audit_logs():
+@healthcare_router.route('/api/hipaa/audit-logs', methods=['PUT'])
+async def hipaa_audit_logs(request: Request):
     """HIPAA audit log manipulation - evidence tampering"""
     # Vulnerability: Can modify or delete audit logs
     # Vulnerability: No integrity protection
 
-    data = request.get_json() or {}
+    data = await request.json() or {}
     action = data.get('action', '')
     target_logs = data.get('target_logs', [])
 
     if action == 'delete':
-        return jsonify({
+        return JSONResponse({
             'status': 'deleted',
             'logs_deleted': len(target_logs),
             'warning': 'HIPAA audit logs deleted - compliance violation',
             'recovery_possible': False
         })
     elif action == 'modify':
-        return jsonify({
+        return JSONResponse({
             'status': 'modified',
             'logs_modified': len(target_logs),
             'warning': 'HIPAA audit logs modified - evidence tampering',
             'integrity_check': 'failed'
         })
 
-    return jsonify({
+    return JSONResponse({
         'status': 'unknown_action',
         'action': action
     })
