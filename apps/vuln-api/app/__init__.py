@@ -198,7 +198,7 @@ def create_app(config=None):
     from app.blueprints.banking import banking_router
     from app.blueprints.mobile import mobile_router
     from app.blueprints.healthcare import healthcare_bp
-    from app.blueprints.ecommerce import ecommerce_bp
+    from app.blueprints.ecommerce import ecommerce_router
     from app.blueprints.checkout import checkout_router
     from app.blueprints.payments import payments_router
     from app.blueprints.insurance import insurance_router
@@ -229,7 +229,6 @@ def create_app(config=None):
     # Register remaining Flask blueprints while migrated routes stay mirrored via compat adapters.
     app.register_blueprint(auth_bp)
     app.register_blueprint(healthcare_bp)
-    app.register_blueprint(ecommerce_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(testing_bp)
 
@@ -257,6 +256,7 @@ def create_app(config=None):
     register_flask_compat_routes(app, saas_router, endpoint_prefix="saas")
     register_flask_compat_routes(app, banking_router, endpoint_prefix="banking")
     register_flask_compat_routes(app, insurance_router, endpoint_prefix="insurance")
+    register_flask_compat_routes(app, ecommerce_router, endpoint_prefix="ecommerce")
     register_flask_compat_routes(app, diagnostics_router, endpoint_prefix="diagnostics")
     register_flask_compat_routes(app, throughput_router, endpoint_prefix="throughput")
     register_flask_compat_routes(app, recorder_router, endpoint_prefix="recorder")
